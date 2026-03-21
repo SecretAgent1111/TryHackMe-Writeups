@@ -63,14 +63,10 @@ After the admin/reviewer opened my submitted survey, my listener received multip
 The value of this cookie appeared to be Base64 encoded, which is a common technique used to obfuscate data in transit.
 
 Example captured request:
-
 GET /?cookie=ZmxhZz1USE17WFNTX0N1cDFkX1N0cjFrM19BZzQxbn0= HTTP/1.1
-
-text
 
 To extract the actual flag, I decoded the Base64 value using a tool like CyberChef.  
 After decoding, it revealed the flag:
-
 flag=THM{XSS_CuP1d_Str1k3s_Ag41n}
 
 I then submitted this flag in TryHackMe to successfully complete the challenge.

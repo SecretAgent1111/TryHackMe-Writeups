@@ -10,7 +10,7 @@ By the end of the room, the admin’s session cookie is obtained as the flag, us
 
 ### Screenshot
 - Homepage of Cupid’s Matchmaker, showing the description and “Take survey” button.  
-- Example filename: ![Homepage](images/cupid-homepage.png)
+ ![Homepage](images/cupid-homepage.png)
 
 ---
 
@@ -24,7 +24,7 @@ I then clicked “Take survey” and inspected the form fields, focusing on any 
 
 ### Screenshot
 - The survey form page, highlighting input fields (especially the long‑text area like “About you” or “Describe yourself”).  
-- Example filename: ![Survey Form](images/cupid-survey.png)
+![Survey Form](images/cupid-survey.png)
 
 ---
 
@@ -39,7 +39,7 @@ From my own browser, I did not see any immediate effect such as an alert popup, 
 ### Screenshot
 - The survey after submission showing the confirmation message.  
 - Optionally, a browser devtools console where you can show the lack of alert on your side.  
-- Example filename: ![Listener Output](images/listener.png)
+![Listener Output](images/listener.png)
 
 ---
 
@@ -53,7 +53,7 @@ I then crafted a JavaScript payload that would silently send the admin’s cooki
 
 ### Screenshot
 - Terminal with your listener running (e.g., `nc -lvnp 8080` or Python HTTP server).  
-- Example filename: ![Listener Output](images/listener.png)
+ ![Listener Output](images/listener.png)
 
 ---
 
@@ -75,9 +75,9 @@ I then submitted this flag in TryHackMe to successfully complete the challenge.
 
 ### Screenshots
 - Terminal showing captured HTTP requests with the Base64 cookie.  
-  Example filename: ![Listener Output](images/listener.png)
+ ![Listener Output](images/listener.png)
 - CyberChef decoding process (input Base64 → output showing the decoded flag).  
-  Example filename: ![Base64 Decoding](images/base64-decoding.png)
+  ![Base64 Decoding](images/base64-decoding.png)
 
 Key takeaways from this section:
 - Stored XSS can be used to exfiltrate sensitive data like session cookies.  

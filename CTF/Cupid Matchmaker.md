@@ -23,7 +23,7 @@ I then clicked “Take survey” and inspected the form fields, focusing on any 
 ---
 
 ### Screenshot
-- The survey form page, highlighting input fields (especially the long‑text area like “About you” or “Describe yourself”).  
+- The survey form page  
 ![Survey Form](images/cupid-survey.png)
 
 ---

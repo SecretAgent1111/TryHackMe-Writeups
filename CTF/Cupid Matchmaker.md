@@ -9,7 +9,7 @@ By the end of the room, the admin’s session cookie is obtained as the flag, us
 ---
 
 ### Suggested screenshot here:
-- Homepage of Cupid’s Matchmaker, showing the description and “Take survey” button.
+- Homepage of Cupid’s Matchmaker, showing the description and “Take survey” button.  
 - Example filename: `screenshots/cupid-homepage.png`
 
 ---
@@ -23,7 +23,7 @@ I then clicked “Take survey” and inspected the form fields, focusing on any 
 ---
 
 ### Suggested screenshot here:
-- The survey form page, highlighting input fields (especially the long‑text area like “About you” or “Describe yourself”).
+- The survey form page, highlighting input fields (especially the long‑text area like “About you” or “Describe yourself”).  
 - Example filename: `screenshots/cupid-survey-form.png`
 
 ---
@@ -37,8 +37,8 @@ From my own browser, I did not see any immediate effect such as an alert popup, 
 ---
 
 ### Suggested screenshot here:
-- The survey after submission showing the confirmation message.
-- Optionally, a browser devtools console where you can show the lack of alert on your side.
+- The survey after submission showing the confirmation message.  
+- Optionally, a browser devtools console where you can show the lack of alert on your side.  
 - Example filename: `screenshots/survey-submitted-confirm.png`
 
 ---
@@ -52,19 +52,44 @@ I then crafted a JavaScript payload that would silently send the admin’s cooki
 ---
 
 ### Suggested screenshot here:
-- Terminal with your listener running (e.g., `nc -lvnp 8080` or Python HTTP server).
+- Terminal with your listener running (e.g., `nc -lvnp 8080` or Python HTTP server).  
 - Example filename: `screenshots/nc-listener.png`
 
 ---
 
 ## 5. Capturing the Flag and Lessons Learned
 
-After the reviewer opened the submission, my listener received an HTTP GET request containing the admin’s session cookie as a query parameter. From that request, I copied the exact value that served as the flag and pasted it into the answer box on TryHackMe to complete the room.
+After the admin/reviewer opened my submitted survey, my listener received multiple HTTP GET requests containing a cookie parameter.  
+The value of this cookie appeared to be Base64 encoded, which is a common technique used to obfuscate data in transit.
 
-From this challenge, I learned how dangerous stored XSS can be when user‑generated content is viewed by admins or privileged users. The scenario also reinforced the importance of using `HttpOnly` cookies and proper input sanitization/output encoding to prevent cookie theft through XSS. Practicing this flow helped me better understand how to spot similar stored XSS opportunities in real‑world applications and how to design payloads that quietly exfiltrate sensitive data.
+Example captured request:
+
+GET /?cookie=ZmxhZz1USE17WFNTX0N1cDFkX1N0cjFrM19BZzQxbn0= HTTP/1.1
+
+text
+
+To extract the actual flag, I decoded the Base64 value using a tool like CyberChef.  
+After decoding, it revealed the flag:
+
+flag=THM{XSS_CuP1d_Str1k3s_Ag41n}
+
+text
+
+I then submitted this flag in TryHackMe to successfully complete the challenge.
 
 ---
 
-### Suggested screenshot here:
-- The captured HTTP request in your listener showing the cookie with the flag.
-- Example filename: `screenshots/flag-extracted.png`
+### Suggested screenshots here:
+- Terminal showing captured HTTP requests with the Base64 cookie.  
+  Example filename: `screenshots/cookie-captured.png`
+- CyberChef decoding process (input Base64 → output showing the decoded flag).  
+  Example filename: `screenshots/base64-decoding.png`
+
+Key takeaways from this section:
+- Stored XSS can be used to exfiltrate sensitive data like session cookies.  
+- Attackers often encode stolen data (e.g., Base64) to avoid detection or formatting issues.  
+- Even if cookies are captured, additional steps like decoding may be required to extract useful information.  
+- Proper defenses include:
+  - Input sanitization and output encoding.  
+  - Using `HttpOnly` and `Secure` cookie flags.  
+  - Implementing Content Security Policy (CSP).

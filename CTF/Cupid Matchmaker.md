@@ -37,8 +37,7 @@ From my own browser, I did not see any immediate effect such as an alert popup, 
 ---
 
 ### Screenshot
-- The survey after submission showing the confirmation message.  
-- Optionally, a browser devtools console where you can show the lack of alert on your side.  
+- The survey after submission showing the confirmation message.   
 ![Listener Output](images/Confirmation.png)
 
 ---

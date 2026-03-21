@@ -73,8 +73,6 @@ After decoding, it revealed the flag:
 
 flag=THM{XSS_CuP1d_Str1k3s_Ag41n}
 
-text
-
 I then submitted this flag in TryHackMe to successfully complete the challenge.
 
 ---

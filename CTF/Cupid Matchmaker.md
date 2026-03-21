@@ -51,7 +51,7 @@ I then crafted a JavaScript payload that would silently send the admin’s cooki
 ---
 
 ### Screenshot
-- Terminal with your listener running (e.g., `nc -lvnp 8080` or Python HTTP server).  
+- Terminal with listener running (e.g., `nc -lvnp 8080` or Python HTTP server).  
  ![Listener Output](images/listener.png)
 
 ---

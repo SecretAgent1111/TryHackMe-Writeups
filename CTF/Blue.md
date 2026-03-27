@@ -106,7 +106,7 @@ msf6 > show options
 msf6 > run
 ```
 
-### Question 1: Required session option
+### Question 1: Required Session Option
 **Select this (use MODULE_PATH). Show options, what option are we required to change?**  
 Answer: `SESSION`
 

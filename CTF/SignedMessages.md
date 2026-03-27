@@ -189,7 +189,3 @@ Real-world message apps can have these exact vulnerabilities if developers don't
 Took about 45 minutes to complete including time spent testing different payloads and analyzing the application behavior.
 
 ---
-
-**Completed:** March 27, 2026  
-**Time taken:** ~45 minutes  
-**Difficulty:** ⭐⭐⭐☆☆

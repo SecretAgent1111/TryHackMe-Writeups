@@ -223,14 +223,6 @@ meterpreter > cat flag3.txt
 
 ---
 
-## Key Takeaways
-
-1. **EternalBlue Vulnerability:** MS17-010 affects unpatched Windows systems with SMB vulnerabilities.
-2. **Metasploit Workflow:** Understanding how to configure, execute, and manage exploit modules is essential.
-3. **Privilege Escalation:** Converting shells to meterpreter sessions provides more powerful post-exploitation capabilities.
-4. **Hash Cracking:** Obtaining and cracking password hashes provides additional access vectors.
-5. **Post-Exploitation:** Systematic enumeration and file discovery reveals additional system information and objectives.
-
 ## Tools & Techniques Summary
 
 | Task | Tool | Command |

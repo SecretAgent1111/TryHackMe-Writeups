@@ -201,7 +201,7 @@ ls
 cat user.txt
 ```
 
-Answer: `8bd7992fbe8a6ad22a63361004cfcedb` (flag varies per deployment)
+Answer: `8bd7992fbe8a6ad22a63361004cfcedb` 
 
 ---
 
@@ -318,7 +318,7 @@ cat /root/root.txt
 ### Question & Answer
 
 **Q: Become root and get the last flag (/root/root.txt)**  
-Answer: `a58ff8579f0a9270368d33a9966c7fd5` (flag varies per deployment)
+Answer: `a58ff8579f0a9270368d33a9966c7fd5` 
 
 ---
 

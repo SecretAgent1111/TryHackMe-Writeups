@@ -133,7 +133,3 @@ Pretty fun challenge that teaches a really practical skill. In real pentests, yo
 Took me maybe 30 minutes including the time waiting for scans to complete. Not super difficult but good practice for building the enumeration mindset.
 
 ---
-
-**Completed:** March 27, 2026  
-**Time taken:** ~30 minutes  
-**Difficulty:** ⭐⭐☆☆☆

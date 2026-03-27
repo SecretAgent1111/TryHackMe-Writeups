@@ -139,16 +139,6 @@ This room was a good refresher on:
 
 ---
 
-## Tips for Others
-
-- Don't skip the enumeration phase - gobuster found some key directories
-- Check robots.txt and source code first
-- Test all input fields systematically
-- Burp Suite is your friend - intercept everything
-- Try simple attacks before getting fancy
-- Read error messages carefully - they leak info
-
----
 
 ## Reflection
 
@@ -156,8 +146,3 @@ Honestly pretty easy once you know what to look for. Took me about 20 minutes fr
 
 The theme was fun and the challenge teaches the fundamentals without being too frustrating. Would recommend this as a first CTF challenge for anyone new to web security.
 
----
-
-**Completed:** March 27, 2026  
-**Time taken:** ~20 minutes  
-**Difficulty:** ⭐☆☆☆☆

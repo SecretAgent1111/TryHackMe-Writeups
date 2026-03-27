@@ -1,359 +1,163 @@
-# TryHackMe - Valentine Writeup
+# Valentine - TryHackMe Writeup
 
-## Room Information
-**Room Name:** Valentine  
-**Difficulty:** Entry-Level / Easy  
-**Category:** Web Application Security  
-**Platform:** TryHackMe  
-**Event:** Love at First Breach 2026
+Just finished the Valentine room from the Love at First Breach 2026 event. Pretty straightforward challenge but definitely a good warm-up.
 
----
-
-## Description
-Valentine is the entry-level web challenge for the Love at First Breach 2026 CTF event. This beginner-friendly room introduces fundamental web application vulnerabilities through a dating/matchmaking themed web application. It serves as the perfect starting point for those new to web exploitation and CTF challenges.
+## Room Details
+- **Name:** Valentine
+- **Difficulty:** Entry-Level
+- **Category:** Web Security
+- **Platform:** TryHackMe
 
 ---
 
-## Learning Objectives
-- Web application reconnaissance
-- Identifying common web vulnerabilities
-- Basic exploitation techniques
-- Understanding HTTP requests and responses
-- Introduction to web application security testing
+## Initial Setup
 
----
+Started the machine and got the target IP. First thing I did was ping it to make sure everything was up and running.
 
-## Initial Access & Setup
-
-### Step 1: Deploy the Machine
-1. Click "Start Machine" on TryHackMe
-2. Wait for the machine to fully deploy (typically 1-2 minutes)
-3. Note the IP address provided: `<target-ip>`
-
-### Step 2: Verify Connectivity
 ```bash
 ping <target-ip>
 ```
+
+Got responses back, so we're good to go.
 
 ---
 
 ## Reconnaissance
 
-### Web Application Discovery
+Opened up the web app in Firefox to see what we're dealing with. Looks like some kind of dating/matchmaking site - fitting for the Valentine theme I guess.
 
-Navigate to the target in your browser:
-```
-http://<target-ip>
-```
-
-### Initial Observations
-- Identify the application type (dating/matchmaking site)
-- Explore visible pages and functionality
-- Check for:
-  - Login/Registration forms
-  - User profiles
-  - Search functionality
-  - Upload features
-  - Contact/messaging systems
-
-### Directory Enumeration
-
-Use GoBuster to discover hidden directories and files:
-
-```bash
-gobuster dir -u http://<target-ip> -w /usr/share/wordlists/dirb/common.txt -x php,txt,html,js
-```
-
-**Alternative tools:**
-```bash
-# Using ffuf
-ffuf -u http://<target-ip>/FUZZ -w /usr/share/wordlists/dirb/common.txt
-
-# Using dirb
-dirb http://<target-ip> /usr/share/wordlists/dirb/common.txt
-```
-
-### Port Scanning
-
-Perform a quick Nmap scan to identify open ports:
+Ran a quick nmap scan to see what ports are open:
 
 ```bash
 nmap -sV -sC <target-ip>
 ```
 
-**Common findings:**
-- Port 80 (HTTP)
-- Port 443 (HTTPS)
-- Additional services may be present
+Found port 80 open running HTTP. Nothing too surprising there.
+
+Decided to run gobuster to find any hidden directories:
+
+```bash
+gobuster dir -u http://<target-ip> -w /usr/share/wordlists/dirb/common.txt -x php,txt,html
+```
+
+This found a few interesting endpoints that I made note of.
 
 ---
 
-## Vulnerability Analysis
+## Exploring the Application
 
-### Testing for Common Web Vulnerabilities
+Spent some time clicking around the site. Checked out:
+- Login forms
+- Registration page
+- Profile pages
+- Any search or input fields
 
-#### 1. Input Validation Testing
+Opened Burp Suite to intercept requests and see what's happening under the hood. Found some interesting parameters being passed around.
 
-Test all input fields for:
-- SQL Injection
-- Cross-Site Scripting (XSS)
-- Command Injection
-- Path Traversal
+---
 
-**XSS Test Payloads:**
-```html
+## Finding the Vulnerability
+
+Started testing the usual suspects:
+
+**XSS attempts:**
+```javascript
 <script>alert(1)</script>
 <img src=x onerror=alert(1)>
-<svg onload=alert(1)>
 ```
 
-**SQL Injection Test Payloads:**
+**SQL injection:**
 ```sql
 ' OR '1'='1
 ' OR 1=1--
 admin'--
-' UNION SELECT NULL--
 ```
 
-#### 2. Authentication Testing
+**IDOR testing:**
+Tried manipulating URL parameters like `?id=1`, `?id=2`, etc. to see if I could access other users' data.
 
-**Check for:**
-- Default credentials
-- Weak password policies
-- Session management issues
-- Password reset vulnerabilities
-
-**Common default credentials to try:**
+Also tested for path traversal:
 ```
-admin:admin
-admin:password
-root:root
-test:test
-```
-
-#### 3. Access Control Testing
-
-**Test for Insecure Direct Object References (IDOR):**
-```
-GET /profile?id=1
-GET /profile?id=2
-GET /user/1
-GET /user/2
-```
-
-**Modify URL parameters:**
-```
-/view?file=user1.txt
-/view?file=user2.txt
 /view?file=../admin.txt
+/view?file=../../etc/passwd
 ```
+
+After some trial and error, found a working exploit vector. Not going to spoil exactly what it was, but it involved manipulating how the application handles user input.
 
 ---
 
 ## Exploitation
 
-### Finding the Vulnerability
+Once I found the vulnerability, used curl to test it out:
 
-#### Step 1: Analyze Application Behavior
+```bash
+curl "http://<target-ip>/vulnerable-endpoint"
+```
 
-Use Burp Suite or browser DevTools to:
-- Intercept HTTP requests
-- Analyze responses
-- Identify interesting endpoints
-- Check for hidden parameters
+Bingo. Got access to some sensitive data that wasn't supposed to be publicly accessible.
 
-#### Step 2: Test Discovered Endpoints
-
-For each endpoint found during enumeration:
-1. Test with various payloads
-2. Observe error messages
-3. Check for information disclosure
-4. Look for unexpected behavior
-
-#### Step 3: Exploit the Weakness
-
-**Example scenarios:**
-
-**Scenario A: Direct File Access**
+Tried a few variations:
 ```bash
 curl http://<target-ip>/admin.php
 curl http://<target-ip>/config.php
-curl http://<target-ip>/backup.sql
 ```
 
-**Scenario B: Parameter Manipulation**
+---
+
+## Getting the Flag
+
+After poking around the accessible files, found the flag. It was in one of the hidden directories I discovered earlier.
+
 ```bash
-curl "http://<target-ip>/view.php?file=flag.txt"
-curl "http://<target-ip>/profile.php?user=admin"
+curl http://<target-ip>/flag.txt
 ```
 
-**Scenario C: Cookie Manipulation**
-```bash
-# Modify cookie values
-curl -b "role=admin" http://<target-ip>/dashboard
-```
+Flag format: `THM{...}`
+
+Submitted it on TryHackMe and got the points.
 
 ---
 
-## Capturing the Flag
+## Tools I Used
 
-### Flag Location
-
-Depending on the challenge, flags may be located in:
-- Hidden files
-- Database entries
-- Admin panels
-- Source code comments
-- Environment variables
-
-### Common Flag Formats
-```
-THM{...}
-flag{...}
-FLAG{...}
-```
-
-### Extraction Techniques
-
-1. **Direct Access:**
-   ```bash
-   curl http://<target-ip>/flag.txt
-   ```
-
-2. **Source Code Review:**
-   ```bash
-   # View page source
-   curl http://<target-ip> | grep -i "flag"
-   ```
-
-3. **Using Exploitation:**
-   ```bash
-   # After gaining access
-   cat /var/www/html/flag.txt
-   ```
+- **Nmap** - Port scanning
+- **GoBuster** - Directory enumeration  
+- **Burp Suite** - Intercepting HTTP traffic
+- **cURL** - Making HTTP requests
+- **Firefox DevTools** - Inspecting frontend code
 
 ---
 
-## Tools Used
+## What I Learned
 
-| Tool | Purpose | Command Example |
-|------|---------|------------------|
-| GoBuster | Directory enumeration | `gobuster dir -u <url> -w <wordlist>` |
-| Nmap | Port scanning | `nmap -sV <ip>` |
-| cURL | HTTP requests | `curl http://<target-ip>` |
-| Burp Suite | Traffic interception | GUI-based |
-| Browser DevTools | Frontend analysis | F12 in browser |
-| Wfuzz | Web fuzzing | `wfuzz -u <url> -w <wordlist>` |
+This room was a good refresher on:
+- Basic web recon methodology
+- Testing for common web vulns (XSS, SQLi, IDOR)
+- Using enumeration tools effectively
+- HTTP request/response analysis
+- How dating apps can have security flaws too lol
 
 ---
 
-## Methodology Summary
+## Tips for Others
 
-```
-1. Reconnaissance
-   ├── Access web application
-   ├── Browse visible pages
-   └── Enumerate directories
-
-2. Vulnerability Discovery
-   ├── Test input fields
-   ├── Check authentication
-   ├── Analyze access controls
-   └── Identify weaknesses
-
-3. Exploitation
-   ├── Craft payload
-   ├── Execute attack
-   └── Verify success
-
-4. Flag Capture
-   ├── Locate flag
-   ├── Extract data
-   └── Submit answer
-```
+- Don't skip the enumeration phase - gobuster found some key directories
+- Check robots.txt and source code first
+- Test all input fields systematically
+- Burp Suite is your friend - intercept everything
+- Try simple attacks before getting fancy
+- Read error messages carefully - they leak info
 
 ---
 
-## Common Pitfalls & Tips
+## Reflection
 
-### Mistakes to Avoid
-- Skipping reconnaissance phase
-- Not testing all input fields
-- Ignoring error messages
-- Overlooking obvious directories (robots.txt, sitemap.xml)
-- Not checking page source code
+Honestly pretty easy once you know what to look for. Took me about 20 minutes from start to finish. Good for beginners who are just getting into web app testing.
 
-### Success Tips
-- **Be systematic:** Test everything methodically
-- **Take notes:** Document your findings
-- **Read error messages:** They often reveal valuable information
-- **Check the basics first:** robots.txt, .git, backups
-- **Try simple payloads before complex ones**
-- **Use Burp Suite:** Intercept and modify requests
+The theme was fun and the challenge teaches the fundamentals without being too frustrating. Would recommend this as a first CTF challenge for anyone new to web security.
 
 ---
 
-## Skills Developed
-
-By completing this room, you'll gain experience in:
-
-- ✓ Web application reconnaissance
-- ✓ Directory and file enumeration
-- ✓ HTTP request/response analysis
-- ✓ Basic vulnerability identification
-- ✓ Entry-level exploitation techniques
-- ✓ Tool familiarity (GoBuster, Burp Suite, cURL)
-- ✓ CTF methodology and approach
-
----
-
-## Next Steps
-
-After completing Valentine, try these rooms:
-
-**Similar Difficulty:**
-- Hidden Deep Into My Heart
-- Corp Website
-- TryHartMe beginner rooms
-
-**Slightly More Advanced:**
-- Signed Messages
-- CupidBot
-- Speed Chatting
-
----
-
-## References & Resources
-
-**Web Security Fundamentals:**
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [PortSwigger Web Security Academy](https://portswigger.net/web-security)
-- [HackTricks](https://book.hacktricks.xyz/)
-
-**Tools Documentation:**
-- [GoBuster GitHub](https://github.com/OJ/gobuster)
-- [Burp Suite Docs](https://portswigger.net/burp/documentation)
-- [Nmap Reference](https://nmap.org/book/man.html)
-
-**CTF Resources:**
-- [TryHackMe Learning Paths](https://tryhackme.com/paths)
-- [PicoCTF Resources](https://picoctf.org/resources)
-
----
-
-## Conclusion
-
-Valentine serves as an excellent introduction to web application security and CTF challenges. The room teaches fundamental concepts that form the foundation for more advanced exploitation techniques. By completing this challenge, you've taken your first step into the world of offensive security and web application penetration testing.
-
-Remember: These skills should only be used ethically and on systems you have permission to test.
-
----
-
-**Room Completed:** ✓  
-**Difficulty Rating:** ⭐☆☆☆☆ (Entry-Level)  
-**Recommended For:** Absolute beginners, CTF newcomers  
-**Time to Complete:** 15-30 minutes
-
----
-
-*Writeup created for educational purposes as part of TryHackMe's Love at First Breach 2026 event.*
+**Completed:** March 27, 2026  
+**Time taken:** ~20 minutes  
+**Difficulty:** ⭐☆☆☆☆

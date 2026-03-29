@@ -128,21 +128,9 @@ Submitted it on TryHackMe and got the points.
 
 ---
 
-## What I Learned
-
-This room was a good refresher on:
-- Basic web recon methodology
-- Testing for common web vulns (XSS, SQLi, IDOR)
-- Using enumeration tools effectively
-- HTTP request/response analysis
-- How dating apps can have security flaws too lol
 
 ---
 
 
-## Reflection
-
-Honestly pretty easy once you know what to look for. Took me about 20 minutes from start to finish. Good for beginners who are just getting into web app testing.
-
-The theme was fun and the challenge teaches the fundamentals without being too frustrating. Would recommend this as a first CTF challenge for anyone new to web security.
+.
 

@@ -1,7 +1,6 @@
 # TryHackMe - Source Room Writeup
- 
-**Completed by Varun Y | March 2026**
- 
+
+
 ---
  
 ## Room Overview
@@ -120,19 +119,7 @@ cat /root/root.txt
  
 ---
  
-## Screenshots
- 
-*(Add your Nmap output, Metasploit session, and flag captures here)*
- 
 ---
- 
-## GitHub README Template
- 
-```markdown
-# TryHackMe: Source - Complete Walkthrough
- 
-[![Status](https://img.shields.io/badge/Status-Completed-brightgreen)](https://tryhackme.com/room/source)
-[![Difficulty](https://img.shields.io/badge/Difficulty-Easy-blue)](https://tryhackme.com/room/source)
  
 ## Quick Summary
  

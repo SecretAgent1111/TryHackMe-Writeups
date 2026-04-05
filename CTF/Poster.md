@@ -178,25 +178,3 @@ A final review was conducted to catalogue all observed security controls:
 
 ---
 
-## Key Takeaways
-
-**For Penetration Testers:**
-A hardened RDBMS leaves very little room for exploitation at the database layer. When standard attack paths are closed (injection, default creds, remote root, brute force), the assessment shifts toward logic flaws, chained vulnerabilities, or misconfigured application layers — reinforcing why thorough enumeration at every layer matters.
-
-**For Defenders and SysAdmins:**
-This room demonstrates that secure database configuration does not require exotic tooling. It requires disciplined application of fundamentals — least privilege, input validation, authentication controls, and network segmentation. These controls compound: each one independently reduces risk, and together they make the environment resilient even if one layer is bypassed.
-
-**For SOC Analysts:**
-Knowing what a properly configured database environment looks like is essential for detecting anomalies. Baseline behaviors — such as expected connection sources, query patterns, and authentication events — become meaningful signals only when you understand what normal looks like. This room provides that baseline reference.
-
----
-
-## Outcome
-
-The SysAdmin's configuration successfully withstood all tested attack vectors. No unauthorized access was achieved through any of the attempted methods. The environment serves as a practical reference for what a secure RDBMS deployment looks like in a real-world context.
-
-**Video Reference:** [Watch the room walkthrough](https://www.youtube.com/watch?v=s4rKV-Ye9lg)
-
----
-
-*Write-up authored as part of an ongoing cybersecurity learning portfolio. All testing was performed within a controlled TryHackMe lab environment.*

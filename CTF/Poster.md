@@ -1,8 +1,14 @@
 # TryHackMe: The SysAdmin Set Up a RDBMS in a Safe Way
 
 **Platform:** TryHackMe
+
+
 **Difficulty:** Intermediate
+
+
 **Focus Area:** Database Security / Secure RDBMS Configuration
+
+
 **Category:** Penetration Testing / Defensive Security
 
 ---

@@ -1,4 +1,4 @@
-# 🧠 TryHackMe: CMSpit
+# TryHackMe: CMSpit
 
 > In this room, I worked on a vulnerable CMS setup and explored how weak authentication, user enumeration, and privilege escalation can chain together into a full compromise.
 

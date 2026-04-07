@@ -224,4 +224,4 @@ exiftool
 
 By the end of the room, I had gone from basic web enumeration to application testing and then to local privilege escalation. This made the room feel very realistic and helped me practice the exact kind of thinking used in real security assessments.
 
-I would say CMSpit was a solid exercise in patience, observation, and chaining multiple weaknesses together.
+![Splunk Detection](images/CMSpit.png)

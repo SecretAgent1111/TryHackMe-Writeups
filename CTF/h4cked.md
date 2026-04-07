@@ -1,4 +1,4 @@
-# 🧠 TryHackMe: h4cked
+# TryHackMe: h4cked
 
 > In this room, I analyzed a packet capture to understand what the attacker did, then used that information to regain access to the machine and complete the challenge.
 

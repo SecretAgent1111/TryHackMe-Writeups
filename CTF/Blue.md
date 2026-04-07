@@ -240,4 +240,4 @@ meterpreter > cat flag3.txt
 
 The Blue room successfully demonstrates a complete exploitation workflow from reconnaissance through post-exploitation. The MS17-010 EternalBlue exploit remains one of the most critical vulnerabilities in Windows environments, and this room provides practical hands-on experience in leveraging it. Regular patching and security updates are essential mitigations for such vulnerabilities.
 
-**Room Status:** Completed ✓
+![](images/blue.png)

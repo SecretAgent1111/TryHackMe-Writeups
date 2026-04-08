@@ -1,83 +1,78 @@
 # TryHackMe: The SysAdmin Set Up a RDBMS in a Safe Way
 
 **Platform:** TryHackMe
-
-
 **Difficulty:** Intermediate
-
-
 **Focus Area:** Database Security / Secure RDBMS Configuration
-
-
 **Category:** Penetration Testing / Defensive Security
 
 ---
 
 ## Overview
 
-This room simulates a real-world scenario where a System Administrator has configured a Relational Database Management System (RDBMS) following industry security best practices. Rather than finding and exploiting vulnerabilities, the objective is to assess the environment from an attacker's perspective — confirming that the defenses hold up under a structured penetration test.
-
-This write-up documents my methodology, observations, and the security controls I encountered during the assessment.
-
----
-
-## Objectives
-
-- Perform black-box enumeration of a hardened database environment
-- Identify and validate security controls put in place by the SysAdmin
-- Attempt common database attack vectors and document why they fail
-- Derive actionable takeaways applicable to real-world database hardening
+This room was about checking whether a relational database was configured safely. Instead of
+exploiting a weak setup, I had to validate that the common attack paths were properly blocked.
+That made the room feel more like a real assessment of hardening controls than a normal CTF box.
 
 ---
 
-## Methodology
+## Task 1: Reconnaissance
 
-The assessment followed a structured penetration testing approach aligned with common frameworks:
+### Objective
+Identify the exposed services and understand the attack surface.
 
-1. Reconnaissance and port enumeration
-2. Web application enumeration and injection testing
-3. Database authentication testing
-4. Privilege review after legitimate access
-5. Configuration analysis and documentation
+### What I Did
+I started with a full scan to see what was open and whether the database was exposed in a
+normal or unusual way.
 
----
-
-## Walkthrough
-
-### Phase 1 — Network Reconnaissance
-
-Initial enumeration was performed using `nmap` with service detection and default scripts enabled:
 ```bash
 nmap -sC -sV -oN initial_scan.txt <target-ip>
 ```
 
-**Findings:**
+### Key Findings
 
-- SSH running on port 22 — standard, no anonymous access
-- HTTP service on port 80 — web application present
-- Database service running on a **non-default port** — not 3306 (MySQL) or 5432 (PostgreSQL)
+- SSH was running on port 22.
+- HTTP was running on port 80.
+- The database service was on a non-default port, which reduces automated exposure.
 
-Running the database on a non-standard port is a basic but effective measure against automated scanners and opportunistic bots that specifically probe default database ports. While this is not a substitute for authentication controls, it reduces noise and lowers the attack surface from unsophisticated threats.
-
-No service banners leaked version information. This suggests the SysAdmin had configured banner suppression, which prevents attackers from fingerprinting exact software versions and targeting known CVEs.
+### Answer
+**What services are exposed on the machine?**
+> SSH, HTTP, and a database service on a non-default port
 
 ---
 
-### Phase 2 — Web Application Enumeration
+## Task 2: Web Enumeration
 
-A web interface was accessible on port 80. Directory brute-forcing was performed using Gobuster:
+### Objective
+Check whether the web application leaks anything useful.
+
+### What I Did
+I brute-forced directories to look for hidden panels or files.
+
 ```bash
-gobuster dir -u http://<target-ip>/ -w /usr/share/wordlists/dirb/common.txt -o gobuster_results.txt
+gobuster dir -u http://<target-ip>/ \
+  -w /usr/share/wordlists/dirb/common.txt \
+  -o gobuster_results.txt
 ```
 
-**Discovered endpoints:**
+### Key Findings
 
-- `/login` — Authentication page connected to the backend database
-- No exposed `/admin`, `/phpmyadmin`, `/db`, or backup file paths found
+- I found a login page tied to the database-backed app.
+- I did not find exposed admin tools, backup files, or obvious database panels.
 
-#### SQL Injection Testing
+### Answer
+**What web endpoint was exposed for authentication?**
+> /login
 
-The login form was tested for common SQL injection payloads:
+---
+
+## Task 3: SQL Injection Testing
+
+### Objective
+Test whether the login form was vulnerable to injection.
+
+### What I Did
+I tried standard SQL injection payloads against the login form.
+
 ```sql
 ' OR '1'='1' --
 ' OR 1=1 --
@@ -85,86 +80,107 @@ admin'--
 " OR ""="
 ```
 
-None of the payloads produced errors, unexpected behavior, or authentication bypass. The application returned generic error messages without disclosing stack traces or query structure — a sign of proper error handling and input sanitization.
+### Key Findings
 
-This behavior is consistent with the use of **prepared statements or parameterized queries**, which separate SQL logic from user-supplied input entirely, making classic injection attacks ineffective regardless of payload complexity.
+- None of the payloads bypassed authentication.
+- The application returned generic errors.
+- No stack traces or SQL syntax leaks were visible.
+
+### Answers
+**Was the login form vulnerable to SQL injection?**
+> No
+
+**What behavior suggested prepared statements were being used?**
+> Generic error handling with no query or syntax leakage
 
 ---
 
-### Phase 3 — Database Authentication Testing
+## Task 4: Database Authentication
 
-Direct connection to the database service was attempted using the MySQL CLI:
+### Objective
+Check if the database could be accessed directly.
+
+### What I Did
+I tested the database login with common accounts.
+
 ```bash
 mysql -h <target-ip> -u root -p
 mysql -h <target-ip> -u admin -p
 ```
 
-**Observations:**
+### Key Findings
 
-- Remote root login was refused outright — `root` was restricted to `localhost` only
-- Multiple failed authentication attempts triggered an automatic lockout, consistent with either `fail2ban` or MySQL's built-in `max_connect_errors` threshold
-- No default or blank-password accounts were accessible
+- Remote root login was blocked.
+- Default or blank passwords were not accepted.
+- Repeated failed logins appeared to trigger throttling or lockout behavior.
 
-This phase confirmed that the most common database attack vectors — default credentials, brute force, and remote root access — were all effectively mitigated.
+### Answers
+**Could you log in remotely as root?**
+> No
+
+**What protected the database from brute force attempts?**
+> Account lockout / login throttling
 
 ---
 
-### Phase 4 — Privilege Enumeration (Post Legitimate Access)
+## Task 5: Privilege Review
 
-After obtaining credentials through authorized means (web application integration credentials discovered in the room's intended path), internal access was used to review the privilege model:
+### Objective
+Check how database privileges were assigned.
+
+### What I Did
+After getting legitimate access through the intended path, I reviewed the grants and
+user permissions.
+
 ```sql
 SHOW GRANTS FOR 'webuser'@'localhost';
 SELECT user, host, authentication_string FROM mysql.user;
 ```
 
-**Privilege audit results:**
+### Key Findings
 
-| User      | Host        | Privileges Granted         |
-|-----------|-------------|----------------------------|
-| root      | localhost   | ALL (local only)           |
-| webuser   | localhost   | SELECT on app database     |
-| No wildcard host (`%`) accounts found |
+- `root` was limited to `localhost`.
+- The application user had only minimal access.
+- No dangerous privileges like `FILE`, `DROP`, or `GRANT OPTION` were present.
 
-The `webuser` account — the one used by the web application to query the database — had only `SELECT` privileges scoped to a single database. There were no `FILE`, `EXECUTE`, `DROP`, `CREATE`, or `GRANT OPTION` privileges assigned.
+### Answers
+**What privilege model was used for the application account?**
+> Least privilege
 
-This is a textbook implementation of the **Principle of Least Privilege (PoLP)**. Even in a scenario where the web application credentials were compromised, an attacker would be unable to write files, modify data, escalate privileges, or pivot further into the system.
+**Was there any wildcard host account for privileged users?**
+> No
+
+---
+
+## Task 6: Security Controls Review
+
+### Objective
+Summarize the hardening measures that were in place.
+
+### What I Observed
+The setup used multiple layers of protection instead of relying on one control. The database
+was hidden from default ports, the web app handled input safely, and the account permissions
+were tightly restricted.
+
+### Answer
+**What made this RDBMS setup safer than a typical vulnerable lab?**
+> Non-default port, restricted root access, prepared statements, generic errors, and least privilege
 
 ---
 
-### Phase 5 — Configuration Review
-
-A final review was conducted to catalogue all observed security controls:
-
-**Authentication and Access Controls:**
-- Remote root login disabled (`bind-address` restricted, root limited to `localhost`)
-- Account lockout policy active after repeated failed login attempts
-- No wildcard host bindings on privileged accounts
-- Strong password policy enforced at the database level
-
-**Network-Level Hardening:**
-- Database not listening on default ports, reducing automated scanning exposure
-- Firewall rules limiting database port access to the application server only (external connections blocked even with valid credentials)
-
-**Application-Level Security:**
-- Parameterized queries / prepared statements used throughout the web application
-- Generic error messages returned to the client — no query or stack trace leakage
-- No exposed database administration interfaces (phpMyAdmin, Adminer, etc.)
-
-**Privilege Management:**
-- Least privilege enforced on all application-facing accounts
-- Schema access scoped tightly — no unnecessary table or database exposure
-- No accounts with dangerous privilege combinations (`FILE` + write access, etc.)
-
----
 ## Tools Used
 
-| Tool        | Purpose                                      |
-|-------------|----------------------------------------------|
-| Nmap        | Port scanning and service fingerprinting     |
-| Gobuster    | Web directory and endpoint enumeration       |
-| MySQL CLI   | Direct database connection and query testing |
-| Wireshark   | Packet inspection during connection attempts |
-| TryHackMe   | Controlled lab environment                   |
+| Tool      | Purpose                            |
+|-----------|------------------------------------|
+| Nmap      | Port scanning and service detection |
+| Gobuster  | Endpoint enumeration               |
+| MySQL CLI | Database authentication testing    |
+| TryHackMe | Lab environment                    |
 
 ---
 
+## Conclusion
+
+This room showed me that a secure database setup is usually not about one big defense. It is
+the combination of proper authentication, limited privileges, safe query handling, and reduced
+exposure that makes the difference.

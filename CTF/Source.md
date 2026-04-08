@@ -126,4 +126,3 @@ cat /root/root.txt
 Webmin 1.890 backdoor (CVE-2019-15107) → Metasploit RCE → Root Access
  
 rustscan → webmin:10000 → msf exploit → root.txt
-```

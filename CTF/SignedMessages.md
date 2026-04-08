@@ -154,32 +154,6 @@ Flag format: `THM{...}`
 
 ---
 
-## What I Learned
-
-This challenge really drove home several important concepts:
-- Message/note apps are common XSS targets
-- Input sanitization needs to be thorough
-- Different contexts require different XSS payloads
-- Data leakage can happen through multiple vectors
-- HttpOnly and Secure flags on cookies are important
-- Always test with Burp Suite to see what's really happening
-
----
-
-## Tips for Others
-
-- Don't just try one XSS payload - try many variations
-- Check how messages are stored and displayed
-- Look for IDOR vulnerabilities in message/user IDs
-- Test with Burp Suite to see unfiltered responses
-- Try stealing cookies or session tokens
-- Check localStorage and sessionStorage for sensitive data
-- Look at the signing mechanism - might be vulnerable
-- Read the application's JavaScript code
-- Test different input contexts (message body, username, etc.)
-
----
-
 ## Reflection
 
 This was a fun intermediate-level challenge. More complex than the beginner rooms but not impossible. Required thinking about different attack vectors and being persistent with payload variations.

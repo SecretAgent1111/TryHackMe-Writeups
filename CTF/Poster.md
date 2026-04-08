@@ -156,22 +156,6 @@ A final review was conducted to catalogue all observed security controls:
 - No accounts with dangerous privilege combinations (`FILE` + write access, etc.)
 
 ---
-
-## Security Controls Summary
-
-| Control                          | Status       | Impact                                      |
-|----------------------------------|--------------|---------------------------------------------|
-| Remote root login disabled       | Implemented  | Prevents direct root compromise remotely    |
-| Non-default database port        | Implemented  | Reduces automated scan exposure             |
-| Account lockout / throttling     | Implemented  | Mitigates brute force attacks               |
-| Parameterized queries            | Implemented  | Eliminates SQL injection vectors            |
-| Principle of least privilege     | Implemented  | Limits blast radius of credential theft     |
-| Host-based access restriction    | Implemented  | Blocks unauthorized remote DB connections   |
-| Banner suppression               | Implemented  | Prevents version-based fingerprinting       |
-| No exposed admin interfaces      | Implemented  | Reduces web-facing attack surface           |
-
----
-
 ## Tools Used
 
 | Tool        | Purpose                                      |

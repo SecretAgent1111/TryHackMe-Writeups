@@ -50,23 +50,6 @@ The Nmap scan reveals the following open ports:
 | 3128 | HTTP Proxy | Squid http proxy 3.5.12 |
 | 3333 | HTTP    | Apache httpd 2.4.18 |
 
-### Questions & Answers
-
-**Q1: Scan the box, how many ports are open?**  
-Answer: `6`
-
-**Q2: What version of the squid proxy is running on the machine?**  
-Answer: `3.5.12`
-
-**Q3: How many ports will Nmap scan if the -p- flag is used?**  
-Answer: `65535`
-
-**Q4: What is this machine's IP address?**  
-Answer: `<target-ip>`
-
-**Q5: What port is the web server running on?**  
-Answer: `3333`
-
 ---
 
 ## Task 3: Locating Directories Using GoBuster
@@ -99,10 +82,6 @@ You can also use DirBuster (GUI-based tool) for directory enumeration.
 /internal (Status: 301)
 ```
 
-### Question & Answer
-
-**Q: What is the directory that has an upload form page?**  
-Answer: `/internal`
 
 ### Exploration
 Navigate to `http://<target-ip>:3333/internal` to find an upload form.
@@ -136,13 +115,6 @@ For systematic testing, use BurpSuite Intruder:
 5. Start the attack
 6. Identify which extensions return "Success" responses
 
-### Question & Answer
-
-**Q: What common file type you'd want to upload to exploit the server is blocked?**  
-Answer: `.php`
-
-**Q: Run this attack, what extension is allowed?**  
-Answer: `.phtml`
 
 ### Step 3: Prepare Reverse Shell
 
@@ -180,14 +152,6 @@ nc -lvnp 4444
 2. Navigate to `http://<target-ip>:3333/internal/uploads/shell.phtml`
 3. The reverse shell executes and connects back to your listener
 
-### Question & Answer
-
-**Q: What is the name of the user who manages the webserver?**  
-Answer: `bill`
-
-**Q: What is the user flag?**  
-Navigate to the home directory and find the flag:
-
 ```bash
 whoami
 # Output: www-data
@@ -201,7 +165,6 @@ ls
 cat user.txt
 ```
 
-Answer: `8bd7992fbe8a6ad22a63361004cfcedb` 
 
 ---
 
@@ -251,11 +214,6 @@ find / -user root -perm /4000 2>/dev/null
 /sbin/mount.nfs
 /bin/systemctl
 ```
-
-### Question & Answer
-
-**Q: On the system, search for all SUID files. What file stands out?**  
-Answer: `/bin/systemctl`
 
 ### Step 2: Exploit systemctl SUID
 
@@ -314,12 +272,6 @@ With root access, read the root flag:
 ```bash
 cat /root/root.txt
 ```
-
-### Question & Answer
-
-**Q: Become root and get the last flag (/root/root.txt)**  
-Answer: `a58ff8579f0a9270368d33a9966c7fd5` 
-
 ---
 
 ## Tools & Techniques Summary

@@ -1,138 +1,147 @@
-# Hidden Deep Into My Heart - TryHackMe Writeup
+# Hidden Deep Into My Heart — TryHackMe Writeup
 
-Just wrapped up the "Hidden Deep Into My Heart" room from Love at First Breach 2026. This one was all about directory bruteforcing and finding hidden paths - basically hide and seek with web directories lol.
+Just finished the **Hidden Deep Into My Heart** room from Love at First Breach 2026. This one
+was mostly about directory bruteforcing and finding hidden paths, so it felt like a classic web
+recon challenge where the main job is just not giving up too early.
+
+---
 
 ## Room Details
-- **Name:** Hidden Deep Into My Heart
-- **Difficulty:** Entry-Level
-- **Category:** Web Security / Directory Enumeration
-- **Platform:** TryHackMe
+
+| Field | Info |
+|-------|------|
+| Name | Hidden Deep Into My Heart |
+| Difficulty | Entry-Level |
+| Category | Web Security / Directory Enumeration |
+| Platform | TryHackMe |
 
 ---
 
 ## Initial Setup
 
-Started the machine like usual. Got my target IP and did a quick ping check to make sure it's reachable.
+I started the machine normally and grabbed the target IP first. After that, I did a quick ping
+check just to make sure the box was actually up and reachable.
 
 ```bash
 ping <target-ip>
 ```
 
-All good, machine is up.
+Everything looked good, so I moved on to the website.
 
 ---
 
 ## First Look
 
-Opened the IP in my browser to see what we're working with. Pretty basic landing page - nothing too fancy. Looked around the visible pages but didn't find much interesting stuff on the surface.
+I opened the IP in my browser to see what the landing page looked like. It was a pretty simple
+page, nothing flashy, and there wasn't much exposed on the surface.
 
-Checked the page source and robots.txt out of habit but nothing jumped out immediately.
+I also checked the page source and looked at `robots.txt` out of habit, but nothing useful
+stood out right away.
 
 ---
 
 ## Directory Bruteforcing
 
-This is where the real challenge starts. The room name basically tells you what to do - find what's hidden deep in the directories.
+This is where the room really starts. The title basically gives away what you're supposed to
+do — find what's hidden deep in the directories.
 
-Fired up gobuster with a common wordlist:
+I started with a common wordlist first:
 
 ```bash
 gobuster dir -u http://<target-ip> -w /usr/share/wordlists/dirb/common.txt
 ```
 
-Got some results but nothing too crazy yet. Decided to dig deeper with a bigger wordlist:
+That gave me a few results, but nothing too exciting yet. So I switched to a bigger wordlist
+and added a few extensions just in case there were files hiding behind them.
 
 ```bash
-gobuster dir -u http://<target-ip> -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt
+gobuster dir -u http://<target-ip> \
+  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
+  -x php,html,txt
 ```
 
-This took a bit longer but started finding some interesting directories.
+That scan took a bit longer, but it started showing me more useful directories.
 
 ---
 
 ## Going Deeper
 
-Found a few subdirectories that weren't linked anywhere on the main site. Started exploring them one by one.
+Once I found a directory that wasn't linked anywhere on the main page, I started checking
+inside it manually.
 
-Tried accessing them directly:
 ```bash
 curl http://<target-ip>/hidden-directory
 ```
 
-Some directories had more directories inside them. Had to run gobuster again on those subdirectories:
+Some of those directories had more content inside them, so I kept scanning deeper instead
+of stopping after the first hit.
 
 ```bash
-gobuster dir -u http://<target-ip>/found-directory -w /usr/share/wordlists/dirb/common.txt
+gobuster dir -u http://<target-ip>/found-directory \
+  -w /usr/share/wordlists/dirb/common.txt
 ```
 
-It's like a maze of directories - the "deep" part of the title makes sense now.
+That's really the whole idea behind this room — it's less about fancy exploitation and more
+about being persistent with enumeration.
 
 ---
 
-## Finding the Hidden Path
+## Finding The Path
 
-After going through multiple levels of directories, finally found a path that wasn't obvious at all. Had to be pretty persistent with the enumeration.
+After going through multiple layers of directories, I finally found a hidden path that wasn't
+obvious from the main site at all.
 
-The key was:
-1. Not giving up after the first gobuster scan
-2. Checking inside discovered directories for more subdirectories  
-3. Using different wordlists when one didn't work
-4. Being patient - this stuff takes time
+What helped most was:
+
+1. Not stopping after the first scan.
+2. Checking every discovered directory for more paths.
+3. Using different wordlists when needed.
+4. Being patient and methodical.
+
+This room was basically a reminder that a lot of web challenges are solved by careful digging,
+not by rushing.
 
 ---
 
-## Getting the Flag
+## Getting The Flag
 
-Once I found the deeply nested directory, navigated to it in the browser. The flag was sitting there in a file.
+Once I reached the final hidden directory, I opened it in the browser and found the flag file there.
 
 ```bash
 curl http://<target-ip>/very/deep/hidden/path/flag.txt
 ```
 
-Flag format: `THM{...}`
+The flag format was `THM{...}`.
 
-Submitted it and got the points.
+After submitting it, the room was complete.
 
 ---
 
-## Tools I Used
+## Tools Used
 
-- **GoBuster** - Main tool for directory enumeration
-- **cURL** - Quick way to check directories
-- **Firefox** - For browsing and checking found paths
-- **DirBuster wordlists** - Different wordlists for different scan depths
+| Tool | Purpose |
+|------|---------|
+| GoBuster | Directory enumeration |
+| cURL | Quick checks on discovered paths |
+| Browser | Manually inspecting pages |
+| DirBuster wordlists | Deeper brute forcing |
 
 ---
 
 ## What I Learned
 
-This room really hammered home some important lessons:
-- Directory bruteforcing is essential for web pentesting
-- Sometimes you need to go multiple levels deep
-- Different wordlists give different results
-- Patience is key - don't stop at the first scan
-- Hidden paths won't always show up in robots.txt or source code
-
----
-
-## Tips for Others
-
-- Start with common.txt but don't stop there
-- If you find a directory, scan inside it too
-- Use the `-x` flag with gobuster to check for specific file extensions
-- Try medium and large wordlists if small ones don't work
-- Keep notes of what directories you've already checked
-- The room name is a hint - go DEEP into the directory structure
+- Directory bruteforcing is a core web pentesting skill.
+- Hidden paths often sit several levels deep.
+- Different wordlists can reveal different things.
+- Patience matters more than speed.
+- Not everything useful is visible in the source or `robots.txt`.
 
 ---
 
 ## Reflection
 
-Pretty fun challenge that teaches a really practical skill. In real pentests, you'll definitely need to enumerate directories to find admin panels, config files, backups, etc. that aren't meant to be public.
+Overall, this was a solid beginner web room. It wasn't difficult, but it was good practice for
+building the right enumeration mindset.
 
-Took me maybe 30 minutes including the time waiting for scans to complete. Not super difficult but good practice for building the enumeration mindset.
-
----
-
-![](images/hid.png)
-
+In real engagements, the same approach can uncover admin panels, backup files, config pages, and
+other hidden endpoints that are easy to miss if you only look at the homepage.

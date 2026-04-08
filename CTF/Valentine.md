@@ -126,11 +126,4 @@ Submitted it on TryHackMe and got the points.
 - **cURL** - Making HTTP requests
 - **Firefox DevTools** - Inspecting frontend code
 
----
-
-
----
-
-
-.
 

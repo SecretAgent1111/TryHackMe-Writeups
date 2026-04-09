@@ -90,3 +90,77 @@ admin'--
 ```
 
 IDOR / path traversal:
+
+```
+?id=1
+?id=2
+/view?file=../admin.txt
+/view?file=../../etc/passwd
+```
+
+After a bit of trial and error, I found a working vector by manipulating how the app handles
+one of its parameters or inputs.
+
+### Answer
+**What vulnerability was mainly being tested in this phase?**
+> Input manipulation / data access vulnerability (likely IDOR or path traversal)
+
+---
+
+## Task 4: Exploitation
+
+### Objective
+Use the found vector to get unauthorized data.
+
+### What I Did
+Once I had a working payload, I used `curl` to test it:
+
+```bash
+curl "http://<target-ip>/vulnerable-endpoint"
+```
+
+That gave me access to something that was supposed to be hidden or restricted. I also tried
+a few more requests directly:
+
+```bash
+curl http://<target-ip>/admin.php
+curl http://<target-ip>/config.php
+```
+
+Some of these returned useful info because the app wasn't properly restricting access.
+
+### Answer
+**Through what endpoint did you first get sensitive data access?**
+> The vulnerable endpoint discovered during enumeration and testing
+
+---
+
+## Task 5: Flag Retrieval
+
+### Objective
+Find and submit the flag.
+
+### What I Did
+After finding the right path, I checked the hidden directory and file I had discovered earlier.
+
+```bash
+curl http://<target-ip>/flag.txt
+```
+
+The flag was in `THM{...}` format.
+
+### Answer
+**What is the flag format used in the room?**
+> `THM{...}`
+
+---
+
+## Tools & Techniques Summary
+
+| Task | Tool | Purpose |
+|------|------|---------|
+| Port Scanning | Nmap | Map exposed services |
+| Directory Brute-forcing | Gobuster | Find hidden pages and files |
+| Traffic Inspection | Burp Suite | Inspect and manipulate HTTP requests |
+| Direct Testing | cURL | Quick endpoint checks |
+| Frontend Inspection | Firefox DevTools | Check client-side code and structure |

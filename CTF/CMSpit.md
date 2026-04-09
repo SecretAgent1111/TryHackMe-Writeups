@@ -265,3 +265,6 @@ before trying to exploit it. I started with simple enumeration, then identified 
 user-related behavior, gained access, and finally used local privilege escalation to reach root.
 
 It was a good reminder that in real assessments, the chain matters just as much as the final exploit.
+
+
+![](images/CMSpit.png)
